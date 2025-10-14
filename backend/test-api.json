@@ -1,0 +1,30 @@
+{
+  "reporter": {
+    "name": "Test User",
+    "email": "test@example.com",
+    "phone": "+1234567890",
+    "userId": "USR-TEST-001"
+  },
+  "issue": {
+    "category": "Sewage",
+    "subcategory": "Sewage overflow",
+    "description": "Test description",
+    "inputMode": "text",
+    "hasVoiceRecording": false,
+    "photos": []
+  },
+  "location": {
+    "latitude": 28.6139,
+    "longitude": 77.2090,
+    "address": "Test Address",
+    "accuracy": 10
+  },
+  "assignment": {
+    "department": null,
+    "assignedTo": null,
+    "assignedPerson": null,
+    "contactEmail": null,
+    "contactPhone": null,
+    "estimatedResolution": null
+  }
+}

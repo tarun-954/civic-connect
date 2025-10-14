@@ -1,0 +1,16 @@
+{
+  "expo": {
+    "name": "civic-connect-backend",
+    "slug": "civic-connect-backend",
+    "version": "1.0.0",
+    "description": "Backend API for Civic Connect mobile app",
+    "sdkVersion": "50.0.0",
+    "platforms": [
+      "ios",
+      "android"
+    ],
+    "android": {
+      "package": "com.anonymous.civicconnectbackend"
+    }
+  }
+}

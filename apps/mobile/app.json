@@ -1,0 +1,51 @@
+{
+  "expo": {
+    "entryPoint": "./index.js",
+    "name": "Civic Connect",
+    "slug": "civic-connect",
+    "scheme": "civicconnect",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./src/images/logoimage.png",
+    "splash": {
+      "image": "./src/images/logoimage.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "updates": {
+      "fallbackToCacheTimeout": 0
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./src/images/logoimage.png",
+        "backgroundColor": "#ffffff"
+      },
+      "package": "com.civic.connect",
+      "permissions": [
+        "android.permission.INTERNET",
+        "android.permission.DETECT_SCREEN_CAPTURE",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.DETECT_SCREEN_CAPTURE"
+      ]
+    },
+    "web": {
+      "favicon": "./src/images/logoimage.png"
+    },
+    "plugins": [
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "Allow Civic Connect to use your location to report issues accurately."
+        }
+      ],
+      "expo-font"
+    ]
+  }
+}

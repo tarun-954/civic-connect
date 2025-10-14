@@ -1,0 +1,28 @@
+{
+  "name": "civic-connect",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev:api": "npm --workspace apps/api run dev",
+    "dev:mobile": "npm --workspace apps/mobile run start",
+    "dev:all": "concurrently -n api,mobile -c yellow,cyan \"npm:dev:api\" \"npm:dev:mobile\"",
+    "build:api": "npm --workspace apps/api run build",
+    "build:shared": "npm --workspace packages/shared run build",
+    "android": "expo run:android",
+    "ios": "expo run:ios"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  },
+  "dependencies": {
+    "expo": "~50.0.0",
+    "expo-clipboard": "^8.0.7",
+    "react": "^18.2.0",
+    "react-native": "^0.73.6",
+    "typescript": "^5.3.0"
+  },
+  "version": "1.0.0"
+}
