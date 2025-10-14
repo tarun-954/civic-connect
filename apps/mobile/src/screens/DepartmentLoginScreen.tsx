@@ -1,186 +1,249 @@
-import React, { useState } from 'react';
+import React, { useState } from "react";
 import {
   View,
   Text,
   TextInput,
   TouchableOpacity,
+  Modal,
+  FlatList,
   StyleSheet,
-  Alert,
-  SafeAreaView,
-  KeyboardAvoidingView,
-  Platform,
-} from 'react-native';
-import { DepartmentService } from '../services/api';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+  TouchableWithoutFeedback,
+} from "react-native";
 
 export default function DepartmentLoginScreen({ navigation }: any) {
-  const [code, setCode] = useState('PUBLIC_WORKS');
-  const [password, setPassword] = useState('pw_demo_123');
-  const [loading, setLoading] = useState(false);
+  const [department, setDepartment] = useState("");
+  const [post, setPost] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [showDeptModal, setShowDeptModal] = useState(false);
+  const [showPostModal, setShowPostModal] = useState(false);
 
-  const handleLogin = async () => {
-    if (!code.trim() || !password.trim()) {
-      Alert.alert('Error', 'Please enter both department code and password');
+  const departments = [
+    "Sanitation / Waste Management",
+    "Water Supply",
+    "Electricity",
+    "Public Works Department (PWD)",
+    "Horticulture / Environment",
+    "Police Department",
+    "Health Department",
+    "Urban Planning / Building",
+    "Transport",
+    "Environmental Control Board",
+  ];
+
+  const posts = [
+    "Junior Officer",
+    "Supervisor",
+    "Assistant Engineer",
+    "Head of Department",
+  ];
+
+  const handleLogin = () => {
+    if (!department || !post || !email || !password) {
+      alert("Please fill all fields");
       return;
     }
-
-    setLoading(true);
-    try {
-      const result = await DepartmentService.login(code.trim(), password);
-      
-      // Store department token
-      await AsyncStorage.setItem('deptToken', result.data.token);
-      await AsyncStorage.setItem('userRole', 'department');
-      await AsyncStorage.setItem('departmentInfo', JSON.stringify(result.data.department));
-      
-      Alert.alert('Success', `Welcome ${result.data.department.name}!`, [
-        { text: 'OK', onPress: () => navigation.replace('DepartmentTabs') }
-      ]);
-    } catch (error: any) {
-      Alert.alert('Login Failed', error.message || 'Invalid credentials');
-    } finally {
-      setLoading(false);
-    }
+    navigation.replace('DepartmentTabs', { department, post });
   };
 
-  return (
-    <SafeAreaView style={styles.container}>
-      <KeyboardAvoidingView 
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={styles.keyboardView}
-      >
-        <View style={styles.content}>
-          <Text style={styles.title}>Department Login</Text>
-          <Text style={styles.subtitle}>Access your department portal</Text>
-          
-          <View style={styles.form}>
-            <Text style={styles.label}>Department Code</Text>
-            <TextInput
-              style={styles.input}
-              value={code}
-              onChangeText={setCode}
-              placeholder="e.g., PUBLIC_WORKS"
-              autoCapitalize="characters"
-              autoCorrect={false}
-            />
-            
-            <Text style={styles.label}>Password</Text>
-            <TextInput
-              style={styles.input}
-              value={password}
-              onChangeText={setPassword}
-              placeholder="Enter password"
-              secureTextEntry
-              autoCapitalize="none"
-            />
-            
-            <TouchableOpacity
-              style={[styles.button, loading && styles.buttonDisabled]}
-              onPress={handleLogin}
-              disabled={loading}
-            >
-              <Text style={styles.buttonText}>
-                {loading ? 'Signing In...' : 'Sign In'}
-              </Text>
-            </TouchableOpacity>
-          </View>
-          
-          <TouchableOpacity
-            style={styles.switchButton}
-            onPress={() => {
-              try {
-                navigation.navigate('Login');
-              } catch (error) {
-                console.error('Navigation error:', error);
-              }
-            }}
-          >
-            <Text style={styles.switchText}>Switch to Citizen Login</Text>
-          </TouchableOpacity>
+  const renderOption = (item: string, onSelect: any) => (
+    <TouchableOpacity
+      style={styles.option}
+      onPress={() => {
+        onSelect(item);
+      }}
+    >
+      <Text style={styles.optionText}>{item}</Text>
+    </TouchableOpacity>
+  );
 
-          <TouchableOpacity
-            style={styles.switchButton}
-            onPress={() => {
-              try {
-                navigation.navigate('DepartmentSignUp');
-              } catch (error) {
-                console.error('Navigation error:', error);
-              }
-            }}
-          >
-            <Text style={styles.switchText}>Create Department (Admin)</Text>
-          </TouchableOpacity>
-        </View>
-      </KeyboardAvoidingView>
-    </SafeAreaView>
+  return (
+    <View style={styles.container}>
+      <Text style={styles.title}>Department Login Portal</Text>
+
+      <View style={styles.card}>
+        {/* Department Dropdown */}
+        <Text style={styles.label}>Select Department</Text>
+        <TouchableOpacity
+          style={styles.dropdown}
+          onPress={() => setShowDeptModal(true)}
+        >
+          <Text style={styles.dropdownText}>
+            {department || "Select Department"}
+          </Text>
+        </TouchableOpacity>
+
+        {/* Post Dropdown */}
+        <Text style={styles.label}>Select Post</Text>
+        <TouchableOpacity
+          style={styles.dropdown}
+          onPress={() => setShowPostModal(true)}
+        >
+          <Text style={styles.dropdownText}>
+            {post || "Select Post"}
+          </Text>
+        </TouchableOpacity>
+
+        {/* Email */}
+        <Text style={styles.label}>Email / Username</Text>
+        <TextInput
+          style={styles.input}
+          value={email}
+          onChangeText={setEmail}
+          placeholder="Enter your official email"
+        />
+
+        {/* Password */}
+        <Text style={styles.label}>Password</Text>
+        <TextInput
+          style={styles.input}
+          secureTextEntry
+          value={password}
+          onChangeText={setPassword}
+          placeholder="Enter your password"
+        />
+
+        {/* Login Button */}
+        <TouchableOpacity style={styles.button} onPress={handleLogin}>
+          <Text style={styles.buttonText}>Login</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity onPress={() => navigation.navigate('Login')}>
+          <Text style={styles.link}>Back to User Login</Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* Department Modal */}
+      <Modal visible={showDeptModal} transparent animationType="fade">
+        <TouchableWithoutFeedback onPress={() => setShowDeptModal(false)}>
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalBox}>
+              <FlatList
+                data={departments}
+                keyExtractor={(item) => item}
+                renderItem={({ item }) =>
+                  renderOption(item, (selected: string) => {
+                    setDepartment(selected);
+                    setShowDeptModal(false);
+                  })
+                }
+              />
+            </View>
+          </View>
+        </TouchableWithoutFeedback>
+      </Modal>
+
+      {/* Post Modal */}
+      <Modal visible={showPostModal} transparent animationType="fade">
+        <TouchableWithoutFeedback onPress={() => setShowPostModal(false)}>
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalBox}>
+              <FlatList
+                data={posts}
+                keyExtractor={(item) => item}
+                renderItem={({ item }) =>
+                  renderOption(item, (selected: string) => {
+                    setPost(selected);
+                    setShowPostModal(false);
+                  })
+                }
+              />
+            </View>
+          </View>
+        </TouchableWithoutFeedback>
+      </Modal>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8fafc',
-  },
-  keyboardView: {
-    flex: 1,
-  },
-  content: {
-    flex: 1,
-    justifyContent: 'center',
-    padding: 24,
+    backgroundColor: "#F9FAFB",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 20,
   },
   title: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#111827',
-    textAlign: 'center',
-    marginBottom: 8,
+    fontSize: 26,
+    fontWeight: "700",
+    color: "#111827",
+    marginBottom: 20,
   },
-  subtitle: {
-    fontSize: 16,
-    color: '#6b7280',
-    textAlign: 'center',
-    marginBottom: 32,
-  },
-  form: {
-    marginBottom: 24,
+  card: {
+    width: "100%",
+    backgroundColor: "#fff",
+    borderRadius: 20,
+    padding: 20,
+    shadowColor: "#000",
+    shadowOpacity: 0.1,
+    shadowOffset: { width: 0, height: 2 },
+    shadowRadius: 8,
+    elevation: 5,
   },
   label: {
-    fontSize: 16,
-    fontWeight: '500',
-    color: '#374151',
-    marginBottom: 8,
+    fontSize: 14,
+    color: "#374151",
+    marginBottom: 5,
+    marginTop: 10,
   },
   input: {
+    height: 45,
     borderWidth: 1,
-    borderColor: '#d1d5db',
-    borderRadius: 8,
-    padding: 12,
-    fontSize: 16,
-    backgroundColor: '#fff',
-    marginBottom: 16,
+    borderColor: "#D1D5DB",
+    borderRadius: 10,
+    paddingHorizontal: 10,
+    marginBottom: 10,
+  },
+  dropdown: {
+    height: 45,
+    borderWidth: 1,
+    borderColor: "#D1D5DB",
+    borderRadius: 10,
+    justifyContent: "center",
+    paddingHorizontal: 10,
+    marginBottom: 10,
+  },
+  dropdownText: {
+    color: "#111827",
   },
   button: {
-    backgroundColor: '#111827',
-    padding: 16,
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  buttonDisabled: {
-    backgroundColor: '#9ca3af',
+    backgroundColor: "#2563EB",
+    borderRadius: 10,
+    paddingVertical: 12,
+    alignItems: "center",
+    marginTop: 15,
   },
   buttonText: {
-    color: '#fff',
+    color: "#fff",
+    fontWeight: "600",
     fontSize: 16,
-    fontWeight: '600',
   },
-  switchButton: {
-    alignItems: 'center',
-    padding: 12,
+  link: {
+    color: "#2563EB",
+    textAlign: "center",
+    marginTop: 15,
   },
-  switchText: {
-    color: '#2563eb',
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.4)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  modalBox: {
+    width: "85%",
+    maxHeight: "70%",
+    backgroundColor: "#fff",
+    borderRadius: 15,
+    padding: 10,
+  },
+  option: {
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: "#E5E7EB",
+  },
+  optionText: {
     fontSize: 16,
-    fontWeight: '500',
+    color: "#111827",
   },
 });

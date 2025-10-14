@@ -21,7 +21,11 @@ async function run() {
         continue;
       }
       const passwordHash = await Department.hashPassword(d.password);
-      await Department.create({ name: d.name, code: d.code, email: d.email, passwordHash });
+      const workers = Array.from({ length: 6 }).map((_, i) => ({
+        name: `${d.code}_worker_${i + 1}`,
+        email: `${d.code.toLowerCase()}_worker_${i + 1}@civic.local`
+      }));
+      await Department.create({ name: d.name, code: d.code, email: d.email, passwordHash, workers, rotationIndex: 0 });
       console.log(`✅ Created department: ${d.code}`);
     }
 

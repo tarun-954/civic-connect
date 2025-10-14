@@ -69,6 +69,37 @@ router.get('/issues', requireDepartment, async (req, res) => {
   }
 });
 
+// Round-robin worker assignment utility
+async function getNextWorkerForDepartment(code) {
+  const dept = await Department.findOne({ code });
+  if (!dept || !dept.workers || dept.workers.length === 0) return { assignedTo: null, assignedPerson: null };
+  const idx = dept.rotationIndex % dept.workers.length;
+  const worker = dept.workers[idx];
+  dept.rotationIndex = (dept.rotationIndex + 1) % dept.workers.length;
+  await dept.save();
+  return { assignedTo: worker.email, assignedPerson: worker.name };
+}
+
+// Endpoint to auto-assign latest unassigned reports to department workers (admin/integration use)
+router.post('/auto-assign', requireDepartment, async (req, res) => {
+  try {
+    const deptCode = req.departmentAuth.deptCode;
+    const unassigned = await Report.find({ 'assignment.department': deptCode, 'assignment.assignedTo': { $in: [null, undefined, ''] } }).sort({ submittedAt: 1 }).limit(50);
+    let assignedCount = 0;
+    for (const r of unassigned) {
+      const next = await getNextWorkerForDepartment(deptCode);
+      r.assignment = r.assignment || {};
+      r.assignment.assignedTo = next.assignedTo;
+      r.assignment.assignedPerson = next.assignedPerson;
+      await r.save();
+      assignedCount++;
+    }
+    return res.status(200).json({ status: 'success', data: { assigned: assignedCount } });
+  } catch (e) {
+    return res.status(500).json({ status: 'error', message: 'Failed to auto-assign' });
+  }
+});
+
 // Update report status (department side)
 router.patch('/issues/:reportId/status', requireDepartment, async (req, res) => {
   try {

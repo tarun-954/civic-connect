@@ -2,6 +2,7 @@ const express = require('express');
 const { body, validationResult } = require('express-validator');
 const mongoose = require('mongoose');
 const Report = require('../models/Report');
+const Department = require('../models/Department');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
@@ -113,13 +114,45 @@ router.post('/submit', validateReportSubmission, async (req, res) => {
     const maxAttempts = 5;
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
       const reportId = Report.generateReportId();
+    // Map categories to department codes
+    const category = (req.body?.issue?.category || '').toLowerCase();
+    const categoryToDept = {
+      'sanitation': 'SANITATION',
+      'garbage': 'SANITATION',
+      'waste': 'SANITATION',
+      'water': 'WATER',
+      'sewage': 'WATER',
+      'electricity': 'ELECTRICITY',
+      'street lighting': 'ELECTRICITY',
+      'infrastructure': 'PUBLIC_WORKS',
+      'roads': 'PUBLIC_WORKS',
+      'road': 'PUBLIC_WORKS'
+    };
+    const deptCode = categoryToDept[category] || req.body?.assignment?.department || null;
+
     const reportData = {
-        ...req.body,
-        reportId,
-        submittedAt: new Date(),
-        updatedAt: new Date()
-      };
+      ...req.body,
+      assignment: {
+        ...(req.body.assignment || {}),
+        department: deptCode
+      },
+      reportId,
+      submittedAt: new Date(),
+      updatedAt: new Date()
+    };
       try {
+        // If department known, round-robin assign now
+        if (deptCode) {
+          const dept = await Department.findOne({ code: deptCode });
+          if (dept && Array.isArray(dept.workers) && dept.workers.length > 0) {
+            const idx = dept.rotationIndex % dept.workers.length;
+            const worker = dept.workers[idx];
+            reportData.assignment.assignedTo = worker.email;
+            reportData.assignment.assignedPerson = worker.name;
+            dept.rotationIndex = (dept.rotationIndex + 1) % dept.workers.length;
+            await dept.save();
+          }
+        }
         const report = new Report(reportData);
         savedReport = await report.save();
         break; // success
@@ -254,12 +287,13 @@ router.post('/:reportId/comments', requireAuth, async (req, res) => {
 // Get all reports
 router.get('/', async (req, res) => {
   try {
-    const { page = 1, limit = 10, status, priority } = req.query;
+    const { page = 1, limit = 10, status, priority, department } = req.query;
     
     // Build filter object
     const filter = {};
     if (status) filter.status = status;
     if (priority) filter.priority = priority;
+    if (department) filter['assignment.department'] = String(department).toUpperCase();
 
     // Calculate pagination
     const skip = (page - 1) * limit;
