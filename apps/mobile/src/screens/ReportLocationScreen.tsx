@@ -12,7 +12,8 @@ import {
 } from "react-native";
 import * as Location from "expo-location";
 import LottieView from "lottie-react-native";
-import LeafletMap from "../components/LeafletMap";
+import GoogleMap from "../components/GoogleMap";
+declare const process: any;
 
 const { width } = Dimensions.get("window");
 
@@ -145,19 +146,25 @@ export default function ReportLocationScreen({ navigation, route }: any) {
         {/* Map Section */}
         <View style={styles.mapSection}>
           <View style={styles.mapContainer}>
-            <LeafletMap
-              key={mapKey} // Force re-render when location changes
-              latitude={location ? location.latitude : region.latitude}
-              longitude={location ? location.longitude : region.longitude}
-              zoom={location ? 17 : 12}
-              markers={location ? [{
-                latitude: location.latitude,
-                longitude: location.longitude,
-                title: "📍 Your Current Location",
-                description: `Accuracy: ±${Math.round(location.accuracy || 50)}m`
-              }] : []}
-              style={styles.map}
-            />
+            {((process as any)?.env?.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY as string) ? (
+              <GoogleMap
+                apiKey={((process as any)?.env?.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY as string) || ''}
+                latitude={location ? location.latitude : region.latitude}
+                longitude={location ? location.longitude : region.longitude}
+                zoom={location ? 17 : 12}
+                markers={location ? [{
+                  latitude: location.latitude,
+                  longitude: location.longitude,
+                  title: "📍 Your Current Location",
+                  description: `Accuracy: ±${Math.round(location.accuracy || 50)}m`
+                }] : []}
+                style={styles.map}
+              />
+            ) : (
+              <View style={[styles.map, { alignItems: 'center', justifyContent: 'center', backgroundColor: '#fff' }]}>
+                <Text style={{ fontSize: 14, color: '#6B7280', textAlign: 'center', paddingHorizontal: 12 }}>Google Maps API key required. Set EXPO_PUBLIC_GOOGLE_MAPS_API_KEY and restart the app.</Text>
+              </View>
+            )}
           </View>
           <Text style={styles.mapInfo}>
             {location ? "📍 Your location is marked on the map" : "🗺️ Tap 'Get My Location' to mark your position"}

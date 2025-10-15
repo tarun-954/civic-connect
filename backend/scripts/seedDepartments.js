@@ -8,10 +8,13 @@ async function run() {
     console.log('✅ Connected to MongoDB');
 
     const demo = [
-      { name: 'Public Works', code: 'PUBLIC_WORKS', email: 'public.works@civic.local', password: 'pw_demo_123' },
-      { name: 'Sanitation', code: 'SANITATION', email: 'sanitation@civic.local', password: 'san_demo_123' },
-      { name: 'Electricity', code: 'ELECTRICITY', email: 'electricity@civic.local', password: 'ele_demo_123' },
-      { name: 'Water', code: 'WATER', email: 'water@civic.local', password: 'wat_demo_123' }
+      { name: 'Road Department', code: 'ROAD_DEPT', email: 'road.dept@civic.local', password: 'road123' },
+      { name: 'Electricity Department', code: 'ELECTRICITY_DEPT', email: 'electricity.dept@civic.local', password: 'elec123' },
+      { name: 'Sewage Department', code: 'SEWAGE_DEPT', email: 'sewage.dept@civic.local', password: 'sewage123' },
+      { name: 'Cleanliness Department', code: 'CLEANLINESS_DEPT', email: 'cleanliness.dept@civic.local', password: 'clean123' },
+      { name: 'Waste Management', code: 'WASTE_MGMT', email: 'waste.mgmt@civic.local', password: 'waste123' },
+      { name: 'Water Department', code: 'WATER_DEPT', email: 'water.dept@civic.local', password: 'water123' },
+      { name: 'Streetlight Department', code: 'STREETLIGHT_DEPT', email: 'streetlight.dept@civic.local', password: 'light123' }
     ];
 
     for (const d of demo) {
@@ -21,11 +24,7 @@ async function run() {
         continue;
       }
       const passwordHash = await Department.hashPassword(d.password);
-      const workers = Array.from({ length: 6 }).map((_, i) => ({
-        name: `${d.code}_worker_${i + 1}`,
-        email: `${d.code.toLowerCase()}_worker_${i + 1}@civic.local`
-      }));
-      await Department.create({ name: d.name, code: d.code, email: d.email, passwordHash, workers, rotationIndex: 0 });
+      await Department.create({ name: d.name, code: d.code, email: d.email, passwordHash });
       console.log(`✅ Created department: ${d.code}`);
     }
 

@@ -1,72 +1,83 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, FlatList, TouchableOpacity, StyleSheet, Image, Linking, Alert } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, FlatList, TouchableOpacity, StyleSheet, Image, Alert, RefreshControl } from 'react-native';
 import { DepartmentService } from '../services/api';
 
-type Issue = { id: string; title: string; location: string; reportedBy: string; status: 'Pending' | 'In Progress' | 'Resolved'; image: string; lat?: number; lng?: number; assignedPerson?: string };
+type Report = {
+  _id: string;
+  reportId: string;
+  trackingCode: string;
+  status: string;
+  priority: string;
+  submittedAt: string;
+  reporter: {
+    name: string;
+    email: string;
+    phone: string;
+  };
+  issue: {
+    category: string;
+    subcategory: string;
+    description: string;
+    photos: Array<{ uri: string; filename?: string }>;
+  };
+  location: {
+    latitude: number;
+    longitude: number;
+    address?: string;
+  };
+  assignment?: {
+    department?: string;
+    assignedAt?: string;
+  };
+};
 
 export default function DepartmentIssuesScreen({ route }: any) {
   const department = route?.params?.department || 'Department';
-  const [selectedStatus, setSelectedStatus] = useState('Pending');
-  const [issues, setIssues] = useState<Issue[]>([
-    {
-      id: '1',
-      title: 'Overflowing Garbage Bin',
-      location: 'Market Road, Ludhiana',
-      reportedBy: 'Tarun',
-      status: 'Pending',
-      image: 'https://via.placeholder.com/150/FF0000/FFFFFF?text=Garbage',
-    },
-    {
-      id: '2',
-      title: 'Broken Street Light',
-      location: 'Sector 5, Chandigarh',
-      reportedBy: 'Ravi',
-      status: 'In Progress',
-      image: 'https://via.placeholder.com/150/0000FF/FFFFFF?text=Light',
-    },
-    {
-      id: '3',
-      title: 'Water Leakage near Park',
-      location: 'Model Town, Ludhiana',
-      reportedBy: 'Simran',
-      status: 'Resolved',
-      image: 'https://via.placeholder.com/150/00FF00/FFFFFF?text=Water',
-    },
-  ]);
+  const departmentCode = route?.params?.departmentCode;
+  const [selectedStatus, setSelectedStatus] = useState('submitted');
+  const [reports, setReports] = useState<Report[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
-  // Fetch real department issues from backend, fallback to demo
+  const loadReports = async () => {
+    try {
+      setLoading(true);
+      const result = await DepartmentService.getIssues();
+      setReports(result.data.reports || []);
+    } catch (error: any) {
+      Alert.alert('Error', error.message || 'Failed to load reports');
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  };
+
   useEffect(() => {
-    (async () => {
-      try {
-        const res = await DepartmentService.getIssues();
-        const reps = res?.data?.reports || [];
-        if (reps.length > 0) {
-          const normalized: Issue[] = reps.map((r: any) => ({
-            id: r.reportId,
-            title: r.issue?.description || `${r.issue?.category || 'Issue'} · ${r.issue?.subcategory || ''}`,
-            location: r.location?.address || 'Location not specified',
-            lat: r.location?.latitude,
-            lng: r.location?.longitude,
-            reportedBy: r.reporter?.name || 'Citizen',
-            status: (r.status === 'in_progress' ? 'In Progress' : r.status === 'resolved' ? 'Resolved' : 'Pending') as Issue['status'],
-            image: r.issue?.photos?.[0]?.uri || 'https://via.placeholder.com/150/93C5FD/111827?text=Report',
-            assignedPerson: r.assignment?.assignedPerson
-          }));
-          setIssues(normalized);
-        }
-      } catch (e: any) {
-        // silent fallback to demo
-      }
-    })();
+    loadReports();
   }, []);
 
-  const filteredIssues = issues.filter((issue: Issue) => issue.status === selectedStatus);
+  const onRefresh = () => {
+    setRefreshing(true);
+    loadReports();
+  };
 
-  const updateStatus = (id: string, newStatus: Issue['status']) => {
-    const updated = issues.map((issue: Issue) =>
-      issue.id === id ? { ...issue, status: newStatus } : issue
-    );
-    setIssues(updated);
+  const filteredReports = reports.filter((report: Report) => {
+    const statusMap: { [key: string]: string } = {
+      'submitted': 'Pending',
+      'in_progress': 'In Progress', 
+      'resolved': 'Resolved'
+    };
+    return statusMap[report.status] === selectedStatus;
+  });
+
+  const updateStatus = async (reportId: string, newStatus: string) => {
+    try {
+      await DepartmentService.updateIssueStatus(reportId, newStatus);
+      // Reload reports after status update
+      loadReports();
+    } catch (error: any) {
+      Alert.alert('Error', error.message || 'Failed to update status');
+    }
   };
 
   const StatusButton = ({ label, color, onPress }: { label: string; color: string; onPress: () => void }) => (
@@ -77,18 +88,6 @@ export default function DepartmentIssuesScreen({ route }: any) {
       <Text style={styles.statusButtonText}>{label}</Text>
     </TouchableOpacity>
   );
-
-  const openDirections = (lat?: number, lng?: number, address?: string) => {
-    try {
-      if (lat && lng) {
-        Linking.openURL(`https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`);
-      } else if (address) {
-        Linking.openURL(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`);
-      } else {
-        Alert.alert('No location', 'This report is missing location data');
-      }
-    } catch {}
-  };
 
   return (
     <View style={styles.container}>
@@ -117,45 +116,55 @@ export default function DepartmentIssuesScreen({ route }: any) {
         ))}
       </View>
 
-      {/* Issues List */}
+      {/* Reports List */}
       <FlatList
-        data={filteredIssues}
-        keyExtractor={(item) => item.id}
+        data={filteredReports}
+        keyExtractor={(item) => item._id}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
         renderItem={({ item }) => (
           <View style={styles.card}>
-            <Image source={{ uri: item.image }} style={styles.image} />
+            <Image 
+              source={{ 
+                uri: item.issue.photos && item.issue.photos.length > 0 
+                  ? item.issue.photos[0].uri 
+                  : 'https://via.placeholder.com/150/6B7280/FFFFFF?text=No+Image'
+              }} 
+              style={styles.image} 
+            />
             <View style={styles.cardContent}>
-              <Text style={styles.title}>{item.title}</Text>
-              <Text style={styles.location}>📍 {item.location}</Text>
-              <Text style={styles.reportedBy}>🧑‍💼 {item.reportedBy}{item.assignedPerson ? ` · Assigned: ${item.assignedPerson}` : ''}</Text>
-              <Text style={[styles.statusBadge, item.status === 'Pending' ? styles.badgePending : item.status === 'In Progress' ? styles.badgeInProgress : styles.badgeResolved]}>
-                {item.status}
+              <Text style={styles.title}>{item.issue.subcategory}</Text>
+              <Text style={styles.category}>📂 {item.issue.category}</Text>
+              <Text style={styles.location}>📍 {item.location.address || `${item.location.latitude}, ${item.location.longitude}`}</Text>
+              <Text style={styles.reportedBy}>🧑‍💼 {item.reporter.name}</Text>
+              <Text style={styles.trackingCode}>🔍 {item.trackingCode}</Text>
+              <Text style={styles.description} numberOfLines={2}>{item.issue.description}</Text>
+              <Text style={[styles.statusBadge, 
+                item.status === 'submitted' ? styles.badgePending : 
+                item.status === 'in_progress' ? styles.badgeInProgress : 
+                styles.badgeResolved]}>
+                {item.status === 'submitted' ? 'Pending' : 
+                 item.status === 'in_progress' ? 'In Progress' : 
+                 'Resolved'}
               </Text>
-              <View style={styles.rowButtons}>
-                <TouchableOpacity style={styles.viewBtn} onPress={() => Alert.alert('Details', `${item.title}\n${item.location}`)}>
-                  <Text style={styles.viewBtnText}>View Details</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.dirBtn} onPress={() => openDirections(item.lat, item.lng, item.location)}>
-                  <Text style={styles.dirBtnText}>Direction</Text>
-                </TouchableOpacity>
-              </View>
 
-              {item.status === 'Pending' && (
+              {item.status === 'submitted' && (
                 <View style={styles.actions}>
                   <StatusButton
                     label="Mark In Progress"
                     color="#F59E0B"
-                    onPress={() => updateStatus(item.id, 'In Progress')}
+                    onPress={() => updateStatus(item.reportId, 'in_progress')}
                   />
                 </View>
               )}
 
-              {item.status === 'In Progress' && (
+              {item.status === 'in_progress' && (
                 <View style={styles.actions}>
                   <StatusButton
                     label="Mark Resolved"
                     color="#10B981"
-                    onPress={() => updateStatus(item.id, 'Resolved')}
+                    onPress={() => updateStatus(item.reportId, 'resolved')}
                   />
                 </View>
               )}
@@ -163,7 +172,9 @@ export default function DepartmentIssuesScreen({ route }: any) {
           </View>
         )}
         ListEmptyComponent={
-          <Text style={styles.noData}>No issues in {selectedStatus}.</Text>
+          <Text style={styles.noData}>
+            {loading ? 'Loading reports...' : `No reports in ${selectedStatus}.`}
+          </Text>
         }
       />
     </View>
@@ -226,8 +237,11 @@ const styles = StyleSheet.create({
     padding: 10,
   },
   title: { fontWeight: '700', fontSize: 16, marginBottom: 4 },
-  location: { color: '#6B7280', fontSize: 13 },
-  reportedBy: { color: '#6B7280', fontSize: 13 },
+  category: { color: '#6B7280', fontSize: 12, marginBottom: 2 },
+  location: { color: '#6B7280', fontSize: 13, marginBottom: 2 },
+  reportedBy: { color: '#6B7280', fontSize: 13, marginBottom: 2 },
+  trackingCode: { color: '#6B7280', fontSize: 12, marginBottom: 2 },
+  description: { color: '#374151', fontSize: 14, marginBottom: 4 },
   statusBadge: {
     alignSelf: 'flex-start',
     marginTop: 5,
@@ -245,11 +259,6 @@ const styles = StyleSheet.create({
     marginTop: 8,
     flexDirection: 'row',
   },
-  rowButtons: { flexDirection: 'row', gap: 10, marginTop: 8 },
-  viewBtn: { flex: 1, borderWidth: 1, borderColor: '#D1D5DB', borderRadius: 10, paddingVertical: 10, alignItems: 'center' },
-  viewBtnText: { color: '#111827', fontWeight: '600' },
-  dirBtn: { flex: 1, backgroundColor: '#065F46', borderRadius: 10, paddingVertical: 10, alignItems: 'center' },
-  dirBtnText: { color: '#fff', fontWeight: '600' },
   statusButton: {
     paddingHorizontal: 10,
     paddingVertical: 5,

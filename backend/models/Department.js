@@ -10,12 +10,6 @@ const departmentSchema = new mongoose.Schema({
   active: { type: Boolean, default: true },
   createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: Date.now },
-  // Round-robin assignment
-  workers: [{
-    name: { type: String, required: true },
-    email: { type: String, required: true, lowercase: true },
-  }],
-  rotationIndex: { type: Number, default: 0 },
   // Simple notification store; for production use a dedicated collection/queue
   notifications: [{
     type: { type: String, enum: ['issue_assigned', 'issue_updated', 'urgent_issue', 'system'], default: 'system' },

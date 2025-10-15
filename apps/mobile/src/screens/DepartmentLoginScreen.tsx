@@ -8,52 +8,72 @@ import {
   FlatList,
   StyleSheet,
   TouchableWithoutFeedback,
+  Alert,
 } from "react-native";
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { DepartmentService } from '../services/api';
 
 export default function DepartmentLoginScreen({ navigation }: any) {
   const [department, setDepartment] = useState("");
-  const [post, setPost] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showDeptModal, setShowDeptModal] = useState(false);
-  const [showPostModal, setShowPostModal] = useState(false);
 
   const departments = [
-    "Sanitation / Waste Management",
-    "Water Supply",
-    "Electricity",
-    "Public Works Department (PWD)",
-    "Horticulture / Environment",
-    "Police Department",
-    "Health Department",
-    "Urban Planning / Building",
-    "Transport",
-    "Environmental Control Board",
+    { name: "Road Department", code: "ROAD_DEPT" },
+    { name: "Electricity Department", code: "ELECTRICITY_DEPT" }, 
+    { name: "Sewage Department", code: "SEWAGE_DEPT" },
+    { name: "Cleanliness Department", code: "CLEANLINESS_DEPT" },
+    { name: "Waste Management", code: "WASTE_MGMT" },
+    { name: "Water Department", code: "WATER_DEPT" },
+    { name: "Streetlight Department", code: "STREETLIGHT_DEPT" }
   ];
 
-  const posts = [
-    "Junior Officer",
-    "Supervisor",
-    "Assistant Engineer",
-    "Head of Department",
-  ];
-
-  const handleLogin = () => {
-    if (!department || !post || !email || !password) {
-      alert("Please fill all fields");
+  const handleLogin = async () => {
+    if (!department || !email || !password) {
+      Alert.alert("Error", "Please fill all fields");
       return;
     }
-    navigation.replace('DepartmentTabs', { department, post });
+    
+    try {
+      const selectedDept = departments.find(d => d.name === department);
+      if (!selectedDept) {
+        Alert.alert("Error", "Invalid department selected");
+        return;
+      }
+
+      // Authenticate against backend and store real JWT token
+      const res = await DepartmentService.login(selectedDept.code, password);
+      const token = res?.data?.token;
+      if (!token) {
+        throw new Error('Invalid response from server');
+      }
+
+      await AsyncStorage.setItem('deptToken', String(token));
+      await AsyncStorage.setItem('userRole', 'department');
+      await AsyncStorage.setItem('departmentInfo', JSON.stringify({
+        name: selectedDept.name,
+        code: selectedDept.code,
+        email
+      }));
+
+      navigation.replace('DepartmentTabs', {
+        department: selectedDept.name,
+        departmentCode: selectedDept.code
+      });
+    } catch (error: any) {
+      Alert.alert("Login Failed", error.message || "Please try again");
+    }
   };
 
-  const renderOption = (item: string, onSelect: any) => (
+  const renderOption = (item: { name: string; code: string }, onSelect: any) => (
     <TouchableOpacity
       style={styles.option}
       onPress={() => {
-        onSelect(item);
+        onSelect(item.name);
       }}
     >
-      <Text style={styles.optionText}>{item}</Text>
+      <Text style={styles.optionText}>{item.name}</Text>
     </TouchableOpacity>
   );
 
@@ -70,17 +90,6 @@ export default function DepartmentLoginScreen({ navigation }: any) {
         >
           <Text style={styles.dropdownText}>
             {department || "Select Department"}
-          </Text>
-        </TouchableOpacity>
-
-        {/* Post Dropdown */}
-        <Text style={styles.label}>Select Post</Text>
-        <TouchableOpacity
-          style={styles.dropdown}
-          onPress={() => setShowPostModal(true)}
-        >
-          <Text style={styles.dropdownText}>
-            {post || "Select Post"}
           </Text>
         </TouchableOpacity>
 
@@ -120,31 +129,11 @@ export default function DepartmentLoginScreen({ navigation }: any) {
             <View style={styles.modalBox}>
               <FlatList
                 data={departments}
-                keyExtractor={(item) => item}
+                keyExtractor={(item) => item.code}
                 renderItem={({ item }) =>
                   renderOption(item, (selected: string) => {
                     setDepartment(selected);
                     setShowDeptModal(false);
-                  })
-                }
-              />
-            </View>
-          </View>
-        </TouchableWithoutFeedback>
-      </Modal>
-
-      {/* Post Modal */}
-      <Modal visible={showPostModal} transparent animationType="fade">
-        <TouchableWithoutFeedback onPress={() => setShowPostModal(false)}>
-          <View style={styles.modalOverlay}>
-            <View style={styles.modalBox}>
-              <FlatList
-                data={posts}
-                keyExtractor={(item) => item}
-                renderItem={({ item }) =>
-                  renderOption(item, (selected: string) => {
-                    setPost(selected);
-                    setShowPostModal(false);
                   })
                 }
               />

@@ -21,10 +21,14 @@ export default function LoginScreen({ navigation }: any) {
     }
     try {
       setLoading(true);
-      const res = await OtpService.requestOtp({ target: target.trim(), channel: 'email', purpose: 'login' });
+      // Open the popup immediately for a smooth UX
       setOtpSent(true);
       setOtpVisible(true);
+      
       setResendIn(30);
+      
+      const res = await OtpService.requestOtp({ target: target.trim(), channel: 'email', purpose: 'login' });
+      
       const timer = setInterval(() => {
         setResendIn((s) => {
           if (s <= 1) { clearInterval(timer as any); return 0; }
@@ -33,6 +37,9 @@ export default function LoginScreen({ navigation }: any) {
       }, 1000);
     } catch (e: any) {
       Alert.alert('Error', e?.message || 'Failed to request OTP');
+      // Close popup if there's an error
+      setOtpVisible(false);
+      setOtpSent(false);
     } finally {
       setLoading(false);
     }
@@ -64,7 +71,7 @@ export default function LoginScreen({ navigation }: any) {
         
         setOtpVisible(false);
         setCode('');
-        navigation.replace('CitizenTabs');
+        navigation.reset({ index: 0, routes: [{ name: 'HomeScreen' }] });
       }
     } catch (e: any) {
       Alert.alert('Verification Failed', e?.message || 'Invalid OTP');
@@ -92,20 +99,12 @@ export default function LoginScreen({ navigation }: any) {
         onChangeText={setTarget}
       />
 
-      {otpSent && (
-        <TextInput
-          style={styles.input}
-          placeholder="Enter 6-digit OTP"
-          keyboardType="number-pad"
-          maxLength={6}
-          value={code}
-          onChangeText={setCode}
-        />
-      )}
 
-      <TouchableOpacity style={[styles.button, loading && { opacity: 0.7 }]} onPress={otpSent ? verifyOtp : requestOtp} disabled={loading}>
-        {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>{otpSent ? 'Verify OTP' : 'Send OTP'}</Text>}
+      <TouchableOpacity style={[styles.button, loading && { opacity: 0.7 }]} onPress={requestOtp} disabled={loading}>
+        {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>Send OTP</Text>}
       </TouchableOpacity>
+      
+      {/* OTP overlay is opened automatically when sending OTP */}
       <View style={styles.linkRow}>
         <Text style={styles.linkText}>New here? </Text>
         <TouchableOpacity onPress={() => navigation.navigate('SignUp')} activeOpacity={0.8}>
@@ -125,12 +124,11 @@ export default function LoginScreen({ navigation }: any) {
       >
         <Text style={styles.switchText}>Switch to Department Login</Text>
       </TouchableOpacity>
-      <Modal visible={otpVisible} transparent animationType="fade" onRequestClose={() => setOtpVisible(false)}>
-        <View style={styles.modalBackdrop}>
+      {otpVisible && (
+        <View style={styles.overlayBackdrop}>
           <View style={styles.modalCard}>
             <Text style={styles.modalTitle}>Verify OTP</Text>
-            <Text style={styles.modalSub}>Enter the 6-digit code sent to your email {resendIn > 0 && '(Dev OTP visible during testing)'}
-            </Text>
+            <Text style={styles.modalSub}>Enter the 6-digit code sent to {target}</Text>
             <TextInput
               style={styles.modalInput}
               placeholder="123456"
@@ -138,25 +136,60 @@ export default function LoginScreen({ navigation }: any) {
               value={code}
               onChangeText={setCode}
               maxLength={6}
+              autoFocus={true}
             />
             <View style={styles.modalActions}>
-              <TouchableOpacity style={[styles.modalBtn, styles.modalCancel]} onPress={() => { setOtpVisible(false); setCode(''); }}>
+              <TouchableOpacity 
+                style={[styles.modalBtn, styles.modalCancel]} 
+                onPress={() => { 
+                  setOtpVisible(false); 
+                  setCode(''); 
+                }}
+              >
                 <Text style={styles.modalCancelText}>Cancel</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={[styles.modalBtn, styles.modalVerify]} onPress={verifyOtp}>
-                <Text style={styles.modalVerifyText}>Verify</Text>
+              <TouchableOpacity 
+                style={[styles.modalBtn, styles.modalVerify, loading && { opacity: 0.7 }]} 
+                onPress={verifyOtp}
+                disabled={loading}
+              >
+                {loading ? (
+                  <ActivityIndicator color="#fff" size="small" />
+                ) : (
+                  <Text style={styles.modalVerifyText}>Verify</Text>
+                )}
               </TouchableOpacity>
             </View>
-            <View style={{ marginTop: 8, alignItems: 'flex-end' }}>
-              <TouchableOpacity disabled={resendIn > 0} onPress={requestOtp}>
-                <Text style={{ color: resendIn > 0 ? '#9CA3AF' : '#159D7E', fontWeight: '600' }}>
+            <View style={styles.resendContainer}>
+              <TouchableOpacity 
+                disabled={resendIn > 0 || loading} 
+                onPress={async () => {
+                  try {
+                    setLoading(true);
+                    await OtpService.requestOtp({ target: target.trim(), channel: 'email', purpose: 'login' });
+                    setResendIn(30);
+                    const timer = setInterval(() => {
+                      setResendIn((s) => {
+                        if (s <= 1) { clearInterval(timer as any); return 0; }
+                        return s - 1;
+                      });
+                    }, 1000);
+                    Alert.alert('Success', 'OTP resent successfully!');
+                  } catch (e: any) {
+                    Alert.alert('Error', e?.message || 'Failed to resend OTP');
+                  } finally {
+                    setLoading(false);
+                  }
+                }}
+              >
+                <Text style={[styles.resendText, (resendIn > 0 || loading) && { color: '#9CA3AF' }]}>
                   {resendIn > 0 ? `Resend OTP in ${resendIn}s` : 'Resend OTP'}
                 </Text>
               </TouchableOpacity>
             </View>
           </View>
         </View>
-      </Modal>
+      )}
     </SafeAreaView>
   );
 }
@@ -177,6 +210,7 @@ const styles = StyleSheet.create({
   linkText: { color: '#6B7280' },
   linkEmphasis: { color: '#0B5CAB', fontWeight: '700' },
   modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', alignItems: 'center', justifyContent: 'center' },
+  overlayBackdrop: { position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.4)', alignItems: 'center', justifyContent: 'center' },
   modalCard: { width: '86%', backgroundColor: '#FFFFFF', borderRadius: 14, padding: 16 },
   modalTitle: { fontSize: 18, fontWeight: '800', color: '#111827' },
   modalSub: { marginTop: 6, color: '#6B7280', marginBottom: 12 },
@@ -196,7 +230,16 @@ const styles = StyleSheet.create({
     color: '#2563eb',
     fontSize: 16,
     fontWeight: '500',
-  }
+  },
+  resendContainer: {
+    marginTop: 12,
+    alignItems: 'center',
+  },
+  resendText: {
+    color: '#159D7E',
+    fontWeight: '600',
+    fontSize: 14,
+  },
 });
 
 

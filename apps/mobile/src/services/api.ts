@@ -369,7 +369,7 @@ export class DepartmentService {
     try {
       const token = await AsyncStorage.getItem('deptToken');
       if (!token) throw new Error('No department token found');
-      // Prefer department-scoped endpoint; fallback to generic filter if needed
+      
       const response = await fetch(`${this.baseURL}/departments/issues`, {
         headers: { Authorization: `Bearer ${token}` }
       });

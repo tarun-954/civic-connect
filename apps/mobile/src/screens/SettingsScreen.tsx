@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { SafeAreaView, View, Text, StyleSheet, TouchableOpacity, Image, Modal, Alert } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
 import { Feather } from '@expo/vector-icons';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -15,6 +16,7 @@ function LanguageSelector() {
 
 export default function SettingsScreen() {
   const { user, logout } = useAuth();
+  const navigation = useNavigation<any>();
   const [showLogoutModal, setShowLogoutModal] = useState(false);
 
   const handleLogout = () => {
@@ -29,9 +31,19 @@ export default function SettingsScreen() {
         {
           text: 'Logout',
           style: 'destructive',
-          onPress: () => {
-            logout();
+          onPress: async () => {
+            await logout();
             setShowLogoutModal(false);
+            // Ensure we return to the auth flow
+            navigation.reset({
+              index: 0,
+              routes: [
+                {
+                  name: 'AuthStack',
+                  params: { screen: 'Splash' }
+                }
+              ]
+            });
           },
         },
       ]
@@ -65,7 +77,6 @@ export default function SettingsScreen() {
             </View>
           </View>
         )}
-
         <View style={styles.settingItem}>
           <Feather name="user" size={20} color="#6B7280" />
           <Text style={styles.settingText}>Profile</Text>

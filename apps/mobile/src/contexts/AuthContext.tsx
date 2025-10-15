@@ -76,6 +76,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       // Clear all stored authentication data
       await AsyncStorage.removeItem('authToken');
       await AsyncStorage.removeItem('cc_user_profile');
+      await AsyncStorage.removeItem('userRole');
+      await AsyncStorage.removeItem('deptToken');
+      await AsyncStorage.removeItem('departmentInfo');
       
       setUser(null);
       setIsAuthenticated(false);
