@@ -71,7 +71,7 @@ export default function LoginScreen({ navigation }: any) {
         
         setOtpVisible(false);
         setCode('');
-        navigation.reset({ index: 0, routes: [{ name: 'HomeScreen' }] });
+        navigation.reset({ index: 0, routes: [{ name: 'MainTabs' }] });
       }
     } catch (e: any) {
       Alert.alert('Verification Failed', e?.message || 'Invalid OTP');

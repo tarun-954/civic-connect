@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { forwardRef, useImperativeHandle, useRef } from 'react';
 import { View, StyleSheet } from 'react-native';
 import { WebView } from 'react-native-webview';
 
@@ -17,9 +17,22 @@ interface GoogleMapProps {
   zoom?: number;
   markers?: GoogleMapMarker[];
   style?: any;
+  onMarkerPress?: (index: number) => void;
+}
+export interface GoogleMapHandle {
+  centerTo: (latitude: number, longitude: number, openIndex?: number) => void;
 }
 
-const GoogleMap: React.FC<GoogleMapProps> = ({ apiKey, latitude, longitude, zoom = 12, markers = [], style }) => {
+const GoogleMap = forwardRef<GoogleMapHandle, GoogleMapProps>(({ apiKey, latitude, longitude, zoom = 12, markers = [], style, onMarkerPress }, ref) => {
+  const webRef = useRef<WebView>(null);
+
+  useImperativeHandle(ref, () => ({
+    centerTo: (lat: number, lng: number, openIndex?: number) => {
+      const js = `if (window.__centerTo) { window.__centerTo(${lat}, ${lng}, ${typeof openIndex === 'number' ? openIndex : -1}); } true;`;
+      try { webRef.current?.injectJavaScript(js); } catch {}
+    }
+  }), []);
+
   const html = `
     <!DOCTYPE html>
     <html>
@@ -38,12 +51,13 @@ const GoogleMap: React.FC<GoogleMapProps> = ({ apiKey, latitude, longitude, zoom
             var map = new google.maps.Map(document.getElementById('map'), {
               center: { lat: ${latitude}, lng: ${longitude} },
               zoom: ${zoom},
-              mapTypeControl: false,
-              fullscreenControl: false,
-              streetViewControl: false
+              mapTypeControl: true,
+              fullscreenControl: true,
+              streetViewControl: true
             });
 
-            var markers = ${JSON.stringify(markers || [])};
+            var markersData = ${JSON.stringify(markers || [])};
+            var markersArr = [];
 
             function createPin(color) {
               var pin = {
@@ -57,17 +71,32 @@ const GoogleMap: React.FC<GoogleMapProps> = ({ apiKey, latitude, longitude, zoom
               return pin;
             }
 
-            markers.forEach(function(m) {
+            (markersData || []).forEach(function(m, i) {
               var marker = new google.maps.Marker({
                 position: { lat: m.latitude, lng: m.longitude },
                 map: map,
                 icon: createPin(m.color)
               });
+              markersArr.push(marker);
               if (m.title || m.description) {
                 var info = new google.maps.InfoWindow({ content: '<div style="font-family: Arial; font-size: 14px; font-weight: 600; color: #111827;">' + (m.title || 'Location') + (m.description ? '<br/><span style="font-weight: 400; color: #6B7280;">' + m.description + '</span>' : '') + '</div>' });
-                marker.addListener('click', function() { info.open(map, marker); });
+                marker.addListener('click', function() { 
+                  info.open(map, marker); 
+                  if (window.ReactNativeWebView) {
+                    window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'marker-press', index: i }));
+                  }
+                });
               }
             });
+
+            window.__centerTo = function(lat, lng, openIndex) {
+              try {
+                map.panTo({ lat: lat, lng: lng });
+                if (typeof openIndex === 'number' && openIndex >= 0 && markersArr[openIndex]) {
+                  google.maps.event.trigger(markersArr[openIndex], 'click');
+                }
+              } catch (e) {}
+            };
           }
 
           window.onload = init;
@@ -86,10 +115,19 @@ const GoogleMap: React.FC<GoogleMapProps> = ({ apiKey, latitude, longitude, zoom
         domStorageEnabled
         startInLoadingState
         scalesPageToFit
+        ref={webRef}
+        onMessage={(e) => {
+          try {
+            const data = JSON.parse(e.nativeEvent.data || '{}');
+            if (data && data.type === 'marker-press' && typeof data.index === 'number') {
+              onMarkerPress && onMarkerPress(data.index);
+            }
+          } catch {}
+        }}
       />
     </View>
   );
-};
+});
 
 const styles = StyleSheet.create({
   container: { flex: 1 },

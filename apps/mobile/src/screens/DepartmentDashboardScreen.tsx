@@ -293,25 +293,25 @@ export default function DepartmentDashboardScreen({ navigation }: any) {
             <View style={styles.servicesGrid}>
               <TouchableOpacity style={styles.serviceItem} onPress={() => navigation.navigate('Issues')} activeOpacity={0.9}>
                 <View style={[styles.serviceIcon, { backgroundColor: '#FFFFFF' }]}>
-                  <Feather name="list" size={28} color="#3B82F6" />
+                  <Image source={require('../images/icons8-list.gif')} style={{ width: 28, height: 28 }} />
                 </View>
                 <Text style={styles.serviceLabel}>Manage Issues</Text>
               </TouchableOpacity>
               <TouchableOpacity style={styles.serviceItem} onPress={() => navigation.navigate('Analytics')} activeOpacity={0.9}>
                 <View style={[styles.serviceIcon, { backgroundColor: '#FFFFFF' }]}>
-                  <Feather name="bar-chart-2" size={28} color="#10B981" />
+                  <Image source={require('../images/icons8-analysis.gif')} style={{ width: 28, height: 28 }} />
                 </View>
                 <Text style={styles.serviceLabel}>Analytics</Text>
               </TouchableOpacity>
               <TouchableOpacity style={styles.serviceItem} onPress={() => navigation.navigate('Map')} activeOpacity={0.9}>
                 <View style={[styles.serviceIcon, { backgroundColor: '#FFFFFF' }]}>
-                  <Feather name="map" size={28} color="#F59E0B" />
+                  <Image source={require('../images/icons8-location.gif')} style={{ width: 28, height: 28 }} />
                 </View>
                 <Text style={styles.serviceLabel}>Map View</Text>
               </TouchableOpacity>
               <TouchableOpacity style={styles.serviceItem} onPress={() => navigation.navigate('Notifications')} activeOpacity={0.9}>
                 <View style={[styles.serviceIcon, { backgroundColor: '#FFFFFF' }]}>
-                  <Feather name="bell" size={28} color="#EF4444" />
+                  <Image source={require('../images/icons8-bell.gif')} style={{ width: 28, height: 28 }} />
                 </View>
                 <Text style={styles.serviceLabel}>Notifications</Text>
               </TouchableOpacity>
@@ -321,7 +321,7 @@ export default function DepartmentDashboardScreen({ navigation }: any) {
             <View style={styles.servicesGrid}>
               <TouchableOpacity style={styles.serviceItem} onPress={() => Alert.alert('ML Analysis', 'AI-powered pothole analysis and OCR priority detection coming soon!')} activeOpacity={0.9}>
                 <View style={[styles.serviceIcon, { backgroundColor: '#FFFFFF' }]}>
-                  <Feather name="cpu" size={28} color="#8B5CF6" />
+                  <Image source={require('../images/robotic-arm.gif')} style={{ width: 28, height: 28 }} />
                 </View>
                 <Text style={styles.serviceLabel}>ML Analysis</Text>
               </TouchableOpacity>

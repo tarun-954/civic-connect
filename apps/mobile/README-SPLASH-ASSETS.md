@@ -3,7 +3,7 @@
 - Replace the illustration in `SplashScreen` by removing the placeholder and adding an image:
 
 ```tsx
-<Image source={require('./assets/splash-illustration.png')} style={{ width: '100%', height: 240, resizeMode: 'contain' }} />
+<Image source={require('./assets/splash-illustration.png')} style={{ width: '100%', height: 340, resizeMode: 'contain' }} />
 ```
 
 - Place your file at `apps/mobile/src/screens/assets/splash-illustration.png` (create the folder if missing)
