@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 declare const process: any;
 import { View, Text, StyleSheet, ActivityIndicator, RefreshControl, ScrollView, Animated, PanResponder, Dimensions, Image, TouchableOpacity, TextInput } from 'react-native';
 import { Feather } from '@expo/vector-icons';
-import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
+import MapView, { Marker, PROVIDER_GOOGLE, UrlTile } from 'react-native-maps';
 import { ApiService } from '../services/api';
 
 export default function MapViewScreen({ navigation }: any) {
@@ -54,15 +54,21 @@ export default function MapViewScreen({ navigation }: any) {
   }, [reports, searchQuery]);
 
   const markers = useMemo(() => {
+    const isFiniteNumber = (n: any) => typeof n === 'number' && isFinite(n);
     return (filteredReports || [])
-      .filter((r: any) => r?.location?.latitude && r?.location?.longitude)
-      .map((r: any) => ({
-        latitude: r.location.latitude,
-        longitude: r.location.longitude,
-        title: r.issue?.category || 'Report',
-        description: r.issue?.subcategory ? `${r.issue.subcategory}` : undefined,
-        color: getMarkerColor(r.status, r.submittedAt)
-      }));
+      .map((r: any) => {
+        const lat = Number(r?.location?.latitude);
+        const lng = Number(r?.location?.longitude);
+        return {
+          latitude: lat,
+          longitude: lng,
+          title: r?.issue?.category || 'Report',
+          description: r?.issue?.subcategory ? `${r.issue.subcategory}` : undefined,
+          color: getMarkerColor(r?.status, r?.submittedAt),
+          _report: r
+        };
+      })
+      .filter((m) => isFiniteNumber(m.latitude) && isFiniteNumber(m.longitude));
   }, [filteredReports]);
 
   const initialCenter = useMemo(() => {
@@ -81,6 +87,17 @@ export default function MapViewScreen({ navigation }: any) {
   const mapRef = useRef<MapView>(null);
   const [activeIndex, setActiveIndex] = useState(0);
   const apiBase: string = ((process as any)?.env?.EXPO_PUBLIC_API_BASE_URL as string) || '';
+  const [mapLoaded, setMapLoaded] = useState<boolean>(false);
+  const [mapFailed, setMapFailed] = useState<boolean>(false);
+  const [useOsmFallback, setUseOsmFallback] = useState<boolean>(false);
+
+  useEffect(() => {
+    // Fallback to OSM tiles if Google map hasn't loaded in time
+    const timer = setTimeout(() => {
+      if (!mapLoaded) setUseOsmFallback(true);
+    }, 5000);
+    return () => clearTimeout(timer);
+  }, [mapLoaded, markers.length]);
 
   const toAbsoluteUrl = (url?: string) => {
     if (!url) return undefined;
@@ -158,16 +175,25 @@ export default function MapViewScreen({ navigation }: any) {
         <MapView
           key={`map-${markers.length}`}
           ref={mapRef}
-          style={{ flex: 1 }}
-          provider={PROVIDER_GOOGLE}
+          style={StyleSheet.absoluteFillObject}
+          provider={googleKey ? PROVIDER_GOOGLE : undefined}
           initialRegion={{
             latitude: initialCenter.latitude,
             longitude: initialCenter.longitude,
             latitudeDelta: 0.05,
             longitudeDelta: 0.05,
           }}
+          mapType="standard"
+          onMapReady={() => setMapLoaded(true)}
           onPress={() => {}}
         >
+          {useOsmFallback && (
+            <UrlTile
+              urlTemplate="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+              maximumZ={19}
+              flipY={false}
+            />
+          )}
           {markers.map((m, idx) => (
             <Marker
               key={`${m.latitude}-${m.longitude}-${idx}`}
@@ -202,12 +228,13 @@ export default function MapViewScreen({ navigation }: any) {
               key={r._id || i}
               activeOpacity={0.9}
               onPress={() => {
-                const m = markers[i];
-                if (m) {
+                const lat = Number(r?.location?.latitude);
+                const lng = Number(r?.location?.longitude);
+                if (isFinite(lat) && isFinite(lng)) {
                   setActiveIndex(i);
                   mapRef.current?.animateToRegion({
-                    latitude: m.latitude,
-                    longitude: m.longitude,
+                    latitude: lat,
+                    longitude: lng,
                     latitudeDelta: 0.02,
                     longitudeDelta: 0.02,
                   }, 300);
@@ -235,12 +262,13 @@ export default function MapViewScreen({ navigation }: any) {
                 <View style={styles.cardActions}>
                   <TouchableOpacity
                     onPress={() => {
-                      const m = markers[i];
-                      if (m) {
+                      const lat = Number(r?.location?.latitude);
+                      const lng = Number(r?.location?.longitude);
+                      if (isFinite(lat) && isFinite(lng)) {
                         setActiveIndex(i);
                         mapRef.current?.animateToRegion({
-                          latitude: m.latitude,
-                          longitude: m.longitude,
+                          latitude: lat,
+                          longitude: lng,
                           latitudeDelta: 0.02,
                           longitudeDelta: 0.02,
                         }, 300);
@@ -262,7 +290,7 @@ export default function MapViewScreen({ navigation }: any) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#ffffff' },
-  mapContainer: { flex: 1 },
+  mapContainer: { flex: 1, position: 'relative' },
   legendContainer: { position: 'absolute', top: 12, left: 12, right: 12, alignItems: 'flex-start' },
   legendCard: { backgroundColor: 'rgba(255,255,255,0.95)', borderRadius: 12, padding: 12, shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 8, shadowOffset: { width: 0, height: 2 } },
   legendTitle: { fontSize: 12, fontWeight: '700', color: '#111827', marginBottom: 6 },
