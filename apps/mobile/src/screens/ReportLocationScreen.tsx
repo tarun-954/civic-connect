@@ -12,7 +12,7 @@ import {
 } from "react-native";
 import * as Location from "expo-location";
 import LottieView from "lottie-react-native";
-import GoogleMap from "../components/GoogleMap";
+import MapView, { Marker, PROVIDER_GOOGLE } from "react-native-maps";
 declare const process: any;
 
 const { width } = Dimensions.get("window");
@@ -146,25 +146,28 @@ export default function ReportLocationScreen({ navigation, route }: any) {
         {/* Map Section */}
         <View style={styles.mapSection}>
           <View style={styles.mapContainer}>
-            {((process as any)?.env?.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY as string) ? (
-              <GoogleMap
-                apiKey={((process as any)?.env?.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY as string) || ''}
-                latitude={location ? location.latitude : region.latitude}
-                longitude={location ? location.longitude : region.longitude}
-                zoom={location ? 17 : 12}
-                markers={location ? [{
-                  latitude: location.latitude,
-                  longitude: location.longitude,
-                  title: "📍 Your Current Location",
-                  description: `Accuracy: ±${Math.round(location.accuracy || 50)}m`
-                }] : []}
-                style={styles.map}
-              />
-            ) : (
-              <View style={[styles.map, { alignItems: 'center', justifyContent: 'center', backgroundColor: '#fff' }]}>
-                <Text style={{ fontSize: 14, color: '#6B7280', textAlign: 'center', paddingHorizontal: 12 }}>Google Maps API key required. Set EXPO_PUBLIC_GOOGLE_MAPS_API_KEY and restart the app.</Text>
-              </View>
-            )}
+            <MapView
+              style={styles.map}
+              provider={PROVIDER_GOOGLE}
+              initialRegion={region}
+              region={location ? {
+                latitude: location.latitude,
+                longitude: location.longitude,
+                latitudeDelta: 0.01,
+                longitudeDelta: 0.01,
+              } : region}
+              mapType="standard"
+            >
+              {(location ? [location] : []).map((loc, i) => (
+                <Marker
+                  key={`loc-${i}`}
+                  coordinate={{ latitude: loc.latitude, longitude: loc.longitude }}
+                  title="📍 Your Current Location"
+                  description={`Accuracy: ±${Math.round((loc as any).accuracy || 50)}m`}
+                  pinColor="#3B82F6"
+                />
+              ))}
+            </MapView>
           </View>
           <Text style={styles.mapInfo}>
             {location ? "📍 Your location is marked on the map" : "🗺️ Tap 'Get My Location' to mark your position"}

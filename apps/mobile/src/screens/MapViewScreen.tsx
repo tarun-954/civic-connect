@@ -54,11 +54,23 @@ export default function MapViewScreen({ navigation }: any) {
   }, [reports, searchQuery]);
 
   const markers = useMemo(() => {
-    const isFiniteNumber = (n: any) => typeof n === 'number' && isFinite(n);
+    const isValidCoord = (lat: any, lng: any) => {
+      if (lat === null || lat === undefined || lng === null || lng === undefined) return false;
+      const nlat = typeof lat === 'string' && lat.trim() === '' ? NaN : Number(lat);
+      const nlng = typeof lng === 'string' && lng.trim() === '' ? NaN : Number(lng);
+      if (!isFinite(nlat) || !isFinite(nlng)) return false;
+      if (Math.abs(nlat) > 90 || Math.abs(nlng) > 180) return false;
+      // Avoid (0,0) and obviously invalid near-zero coords
+      if (Math.abs(nlat) < 0.0001 && Math.abs(nlng) < 0.0001) return false;
+      return true;
+    };
     return (filteredReports || [])
       .map((r: any) => {
-        const lat = Number(r?.location?.latitude);
-        const lng = Number(r?.location?.longitude);
+        const latRaw = r?.location?.latitude;
+        const lngRaw = r?.location?.longitude;
+        if (!isValidCoord(latRaw, lngRaw)) return null as any;
+        const lat = Number(latRaw);
+        const lng = Number(lngRaw);
         return {
           latitude: lat,
           longitude: lng,
@@ -68,15 +80,41 @@ export default function MapViewScreen({ navigation }: any) {
           _report: r
         };
       })
-      .filter((m) => isFiniteNumber(m.latitude) && isFiniteNumber(m.longitude));
+      .filter(Boolean);
   }, [filteredReports]);
 
   const initialCenter = useMemo(() => {
     if (markers.length > 0) {
       return { latitude: markers[0].latitude, longitude: markers[0].longitude };
     }
-    return { latitude: 28.6139, longitude: 77.2090 }; // New Delhi default
+    // Wider default so user sees more map context
+    return { latitude: 23.5937, longitude: 80.9629 }; // India centroid
   }, [markers]);
+
+  useEffect(() => {
+    // Fit markers after map is loaded
+    if (!mapLoaded || !mapRef.current) return;
+    if (markers.length > 0) {
+      const coords = markers.map(m => ({ latitude: m.latitude, longitude: m.longitude }));
+      try {
+        mapRef.current.fitToCoordinates(coords, {
+          edgePadding: { top: 90, left: 90, right: 90, bottom: 140 },
+          animated: true,
+        });
+      } catch {}
+    }
+  }, [mapLoaded, markers.length]);
+
+  useEffect(() => {
+    if (mapRef.current && markers.length > 0) {
+      mapRef.current.animateToRegion({
+        latitude: initialCenter.latitude,
+        longitude: initialCenter.longitude,
+        latitudeDelta: 0.05,
+        longitudeDelta: 0.05,
+      }, 300);
+    }
+  }, [initialCenter, markers.length]);
 
   const onRefresh = () => {
     setRefreshing(true);
@@ -107,6 +145,34 @@ export default function MapViewScreen({ navigation }: any) {
       return `${apiBase}${sep}${url}`;
     }
     return url; // best effort
+  };
+
+  const parseCoordinates = (r: any): { lat?: number; lng?: number } => {
+    const latRaw = r?.location?.latitude;
+    const lngRaw = r?.location?.longitude;
+    let latNum: number | undefined;
+    let lngNum: number | undefined;
+    if (latRaw !== undefined && lngRaw !== undefined) {
+      const a = Number(latRaw);
+      const b = Number(lngRaw);
+      if (isFinite(a) && isFinite(b) && Math.abs(a) <= 90 && Math.abs(b) <= 180) {
+        latNum = a; lngNum = b;
+      }
+    }
+    if (latNum === undefined || lngNum === undefined) {
+      const coordStr = r?.location?.coordinates || r?.coordinates || r?.location?.coordString;
+      if (typeof coordStr === 'string' && coordStr.includes(',')) {
+        const parts = coordStr.split(',');
+        const a = Number(parts[0].trim());
+        const b = Number(parts[1].trim());
+        if (isFinite(a) && isFinite(b) && Math.abs(a) <= 90 && Math.abs(b) <= 180) {
+          latNum = a; lngNum = b;
+        }
+      }
+    }
+    if (latNum === undefined || lngNum === undefined) return {} as any;
+    if (Math.abs(latNum) < 0.0001 && Math.abs(lngNum) < 0.0001) return {} as any;
+    return { lat: latNum, lng: lngNum };
   };
 
   const extractUrlFromAny = (p: any): string | undefined => {
@@ -180,8 +246,8 @@ export default function MapViewScreen({ navigation }: any) {
           initialRegion={{
             latitude: initialCenter.latitude,
             longitude: initialCenter.longitude,
-            latitudeDelta: 0.05,
-            longitudeDelta: 0.05,
+            latitudeDelta: markers.length > 0 ? 0.05 : 15,
+            longitudeDelta: markers.length > 0 ? 0.05 : 15,
           }}
           mapType="standard"
           onMapReady={() => setMapLoaded(true)}
@@ -228,9 +294,10 @@ export default function MapViewScreen({ navigation }: any) {
               key={r._id || i}
               activeOpacity={0.9}
               onPress={() => {
-                const lat = Number(r?.location?.latitude);
-                const lng = Number(r?.location?.longitude);
-                if (isFinite(lat) && isFinite(lng)) {
+                const parsed = parseCoordinates(r);
+                const lat = parsed.lat;
+                const lng = parsed.lng;
+                if (typeof lat === 'number' && typeof lng === 'number') {
                   setActiveIndex(i);
                   mapRef.current?.animateToRegion({
                     latitude: lat,
@@ -262,9 +329,10 @@ export default function MapViewScreen({ navigation }: any) {
                 <View style={styles.cardActions}>
                   <TouchableOpacity
                     onPress={() => {
-                      const lat = Number(r?.location?.latitude);
-                      const lng = Number(r?.location?.longitude);
-                      if (isFinite(lat) && isFinite(lng)) {
+                      const parsed = parseCoordinates(r);
+                      const lat = parsed.lat;
+                      const lng = parsed.lng;
+                      if (typeof lat === 'number' && typeof lng === 'number') {
                         setActiveIndex(i);
                         mapRef.current?.animateToRegion({
                           latitude: lat,

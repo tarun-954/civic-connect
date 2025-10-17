@@ -16,7 +16,7 @@ import {
 } from 'react-native';
 import Clipboard from '@react-native-clipboard/clipboard';
 import { Feather } from '@expo/vector-icons';
-import GoogleMap from '../components/GoogleMap';
+import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
 declare const process: any;
 import { ApiService, formatReportForSubmission, getStoredUserProfile, fetchMyProfile } from '../services/api';
 
@@ -355,25 +355,24 @@ const ReportPreviewScreen: React.FC<ReportPreviewScreenProps> = ({ navigation, r
             
             {/* Interactive Map */}
             <View style={styles.mapContainer}>
-              {((process as any)?.env?.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY as string) ? (
-                <GoogleMap
-                  apiKey={((process as any)?.env?.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY as string) || ''}
-                  latitude={mapCoordinates.latitude}
-                  longitude={mapCoordinates.longitude}
-                  zoom={17}
-                  markers={[{
-                    latitude: mapCoordinates.latitude,
-                    longitude: mapCoordinates.longitude,
-                    title: "📍 Reported Location",
-                    description: `Issue Location: ${displayData.location.coordinates}`
-                  }]}
-                  style={styles.map}
+              <MapView
+                style={styles.map}
+                provider={PROVIDER_GOOGLE}
+                initialRegion={{
+                  latitude: mapCoordinates.latitude,
+                  longitude: mapCoordinates.longitude,
+                  latitudeDelta: 0.01,
+                  longitudeDelta: 0.01,
+                }}
+                mapType="standard"
+              >
+                <Marker
+                  coordinate={{ latitude: mapCoordinates.latitude, longitude: mapCoordinates.longitude }}
+                  title="📍 Reported Location"
+                  description={`Issue Location: ${displayData.location.coordinates}`}
+                  pinColor="#3B82F6"
                 />
-              ) : (
-                <View style={[styles.map, { alignItems: 'center', justifyContent: 'center', backgroundColor: '#fff' }]}>
-                  <Text style={{ fontSize: 14, color: '#6B7280', textAlign: 'center', paddingHorizontal: 12 }}>Google Maps API key required. Set EXPO_PUBLIC_GOOGLE_MAPS_API_KEY and restart the app.</Text>
-                </View>
-              )}
+              </MapView>
             </View>
             <Text style={styles.mapInfoText}>
               📍 Issue location marked on the map

@@ -1,6 +1,20 @@
-import React from 'react';
-import { SafeAreaView, View, Text, StyleSheet, TouchableOpacity, Image, ScrollView, Dimensions } from 'react-native';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import {
+  SafeAreaView,
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  Image,
+  ScrollView,
+  Dimensions,
+  RefreshControl,
+  ActivityIndicator,
+} from 'react-native';
 import { Feather } from '@expo/vector-icons';
+import { ApiService } from '../services/api';
+import { LineChart } from 'react-native-chart-kit';
+import { Picker } from '@react-native-picker/picker';
 
 const { width } = Dimensions.get('window');
 
@@ -14,8 +28,125 @@ function LanguageSelector() {
   );
 }
 
-
 export default function AnalyticsScreen() {
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [reports, setReports] = useState<any[]>([]);
+  const [rangeDays, setRangeDays] = useState<7 | 10 | 14 | 30>(30);
+  const [selectedCategory, setSelectedCategory] = useState<string>('All');
+  const [showDropdown, setShowDropdown] = useState(false);
+
+  const fetchAllReports = useCallback(async () => {
+    setLoading(true);
+    try {
+      let page = 1;
+      const pageSize = 200;
+      const all: any[] = [];
+      for (let i = 0; i < 10; i++) {
+        const result = await ApiService.getReports(page, pageSize);
+        const list = result?.data?.reports || [];
+        all.push(...list);
+        const hasNext = result?.data?.pagination?.hasNext;
+        if (!hasNext) break;
+        page += 1;
+      }
+      setReports(all);
+    } catch (e) {
+      console.log('Error fetching data:', e);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchAllReports();
+  }, [fetchAllReports]);
+
+  const byStatus = useMemo(() => {
+    const counts = { submitted: 0, in_progress: 0, resolved: 0, closed: 0, overdue: 0 };
+    for (const r of reports) {
+      const s = r?.status || 'submitted';
+      counts[s as keyof typeof counts] = (counts[s as keyof typeof counts] || 0) + 1;
+    }
+    return counts;
+  }, [reports]);
+
+  const totalReports = reports.length;
+
+  const categoriesList = useMemo(() => {
+    const set = new Set<string>();
+    for (const r of reports) set.add(r?.issue?.category || 'Other');
+    return ['All', ...Array.from(set).sort()];
+  }, [reports]);
+
+  const timeWindow = useMemo(() => {
+    const days: string[] = [];
+    const now = new Date();
+    const span = rangeDays;
+    for (let i = span - 1; i >= 0; i--) {
+      const d = new Date(now.getTime() - i * 24 * 60 * 60 * 1000);
+      days.push(d.toISOString().slice(0, 10));
+    }
+    return days;
+  }, [rangeDays]);
+
+  const makeSeries = useCallback(
+    (filterCategory?: string) => {
+      const days = timeWindow;
+      const makeZeroMap = () =>
+        days.reduce((acc: any, d) => {
+          acc[d] = 0;
+          return acc;
+        }, {});
+      const submitted = makeZeroMap();
+      const inProgress = makeZeroMap();
+      const resolved = makeZeroMap();
+      const overdue = makeZeroMap();
+
+      for (const r of reports) {
+        const cat = r?.issue?.category || 'Other';
+        if (filterCategory && filterCategory !== 'All' && cat !== filterCategory) continue;
+        const key = r?.submittedAt ? new Date(r.submittedAt).toISOString().slice(0, 10) : undefined;
+        if (!key || !(key in submitted)) continue;
+        const s = r?.status || 'submitted';
+        if (s === 'submitted') submitted[key] += 1;
+        else if (s === 'in_progress') inProgress[key] += 1;
+        else if (s === 'resolved' || s === 'closed') resolved[key] += 1;
+        else if (s === 'overdue') overdue[key] += 1;
+      }
+
+      return {
+        labels: days,
+        datasets: [
+          { data: days.map((d) => submitted[d]), color: () => '#3B82F6', strokeWidth: 3 },
+          { data: days.map((d) => inProgress[d]), color: () => '#EF4444', strokeWidth: 3 },
+          { data: days.map((d) => resolved[d]), color: () => '#10B981', strokeWidth: 3 },
+          { data: days.map((d) => overdue[d]), color: () => '#F59E0B', strokeWidth: 3 },
+        ],
+      };
+    },
+    [reports, timeWindow]
+  );
+
+  const seriesAllStatuses = useMemo(() => makeSeries(), [makeSeries]);
+  const seriesByCategory = useMemo(() => makeSeries(selectedCategory), [makeSeries, selectedCategory]);
+
+  const onRefresh = () => {
+    setRefreshing(true);
+    fetchAllReports();
+  };
+
+  const chartConfig = {
+    backgroundGradientFrom: '#ffffff',
+    backgroundGradientTo: '#ffffff',
+    decimalPlaces: 0,
+    color: (opacity = 1) => `rgba(17,24,39,${opacity})`,
+    labelColor: (opacity = 1) => `rgba(107,114,128,${opacity})`,
+    propsForDots: { r: '3', strokeWidth: '1', stroke: '#3B82F6' },
+    propsForBackgroundLines: { strokeDasharray: '', strokeWidth: 0 },
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
@@ -26,64 +157,132 @@ export default function AnalyticsScreen() {
         <LanguageSelector />
       </View>
 
-      <ScrollView style={styles.scrollContainer} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        style={styles.scrollContainer}
+        showsVerticalScrollIndicator={false}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+      >
         <View style={styles.content}>
-          <View style={styles.chartCard}>
-            <Text style={styles.chartTitle}>Issues Overview</Text>
-            <View style={styles.pieChartContainer}>
-              <View style={styles.pieChart}>
-                <View style={[styles.pieSlice, styles.slice1]} />
-                <View style={[styles.pieSlice, styles.slice2]} />
-                <View style={[styles.pieSlice, styles.slice3]} />
-              </View>
-              <View style={styles.legend}>
-                <View style={styles.legendItem}>
-                  <View style={[styles.legendDot, { backgroundColor: '#EF4444' }]} />
-                  <Text style={styles.legendText}>Resolved Issues</Text>
-                </View>
-                <View style={styles.legendItem}>
-                  <View style={[styles.legendDot, { backgroundColor: '#374151' }]} />
-                  <Text style={styles.legendText}>Active Issues</Text>
-                </View>
-                <View style={styles.legendItem}>
-                  <View style={[styles.legendDot, { backgroundColor: '#9CA3AF' }]} />
-                  <Text style={styles.legendText}>Pending Review</Text>
-                </View>
-              </View>
-            </View>
-            <TouchableOpacity style={styles.detailsButton}>
-              <Text style={styles.detailsButtonText}>DISPLAY MORE DETAILS</Text>
+          {/* Days Range Selector */}
+          <View style={styles.daysBoxRow}>
+            {[7, 10, 14, 30].map((d) => (
+              <TouchableOpacity
+                key={d}
+                style={[styles.dayBox, rangeDays === d && styles.dayBoxActive]}
+                onPress={() => setRangeDays(d as any)}
+              >
+                <Text style={[styles.dayBoxText, rangeDays === d && styles.dayBoxTextActive]}>{d} Days</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+
+          {/* Category Chips Row */}
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.categoryRow}>
+            {categoriesList.slice(0, 4).map((cat, idx) => (
+              <TouchableOpacity
+                key={cat}
+                style={[styles.categoryChip, selectedCategory === cat && styles.categoryChipActive]}
+                onPress={() => setSelectedCategory(cat)}
+              >
+                <Image
+                  source={require('../images/icons8-transmission-tower-24 (1).png')}
+                  style={styles.categoryIcon}
+                />
+                <Text style={[styles.categoryText, selectedCategory === cat && styles.categoryTextActive]}>{cat}</Text>
+              </TouchableOpacity>
+            ))}
+
+            {/* Dropdown for remaining categories */}
+            <TouchableOpacity style={styles.moreChip} onPress={() => setShowDropdown(!showDropdown)}>
+              <Feather name="chevron-down" size={16} color="#111" />
+              <Text style={styles.moreText}>More</Text>
             </TouchableOpacity>
-          </View>
+          </ScrollView>
 
+          {showDropdown && (
+            <View style={styles.dropdown}>
+              <Picker selectedValue={selectedCategory} onValueChange={(val) => setSelectedCategory(val)}>
+                {categoriesList.slice(4).map((cat) => (
+                  <Picker.Item key={cat} label={cat} value={cat} />
+                ))}
+              </Picker>
+            </View>
+          )}
+
+          {/* Stats */}
           <View style={styles.statsGrid}>
             <View style={styles.statCard}>
-              <Feather name="trending-up" size={24} color="#10B981" />
-              <Text style={styles.statNumber}>1,370</Text>
+              <Feather name="trending-up" size={20} color="#10B981" />
+              <Text style={styles.statNumber}>{totalReports}</Text>
               <Text style={styles.statLabel}>Total Reports</Text>
-              <Text style={styles.statChange}>+15.2% this month</Text>
             </View>
             <View style={styles.statCard}>
-              <Feather name="clock" size={24} color="#F59E0B" />
-              <Text style={styles.statNumber}>2.4 days</Text>
-              <Text style={styles.statLabel}>Avg Response Time</Text>
-              <Text style={styles.statChange}>-0.8 days improved</Text>
+              <Feather name="clock" size={20} color="#F59E0B" />
+              <Text style={styles.statNumber}>{byStatus.in_progress}</Text>
+              <Text style={styles.statLabel}>In Progress</Text>
             </View>
           </View>
 
           <View style={styles.statsGrid}>
             <View style={styles.statCard}>
-              <Feather name="users" size={24} color="#6366F1" />
-              <Text style={styles.statNumber}>89%</Text>
-              <Text style={styles.statLabel}>Satisfaction Rate</Text>
-              <Text style={styles.statChange}>+3.2% this month</Text>
+              <Feather name="check-circle" size={20} color="#10B981" />
+              <Text style={styles.statNumber}>{byStatus.resolved + byStatus.closed}</Text>
+              <Text style={styles.statLabel}>Resolved</Text>
             </View>
             <View style={styles.statCard}>
-              <Feather name="map-pin" size={24} color="#EC4899" />
-              <Text style={styles.statNumber}>45</Text>
-              <Text style={styles.statLabel}>Active Areas</Text>
-              <Text style={styles.statChange}>+5 new areas</Text>
+              <Feather name="edit-3" size={20} color="#3B82F6" />
+              <Text style={styles.statNumber}>{byStatus.submitted}</Text>
+              <Text style={styles.statLabel}>Submitted</Text>
             </View>
+          </View>
+
+          {/* Charts */}
+          <View style={styles.chartCard}>
+            <Text style={styles.chartTitle}>Status trends (last {rangeDays} days)</Text>
+            {loading ? (
+              <ActivityIndicator color="#111827" />
+            ) : (
+              <LineChart
+                data={{
+                  labels: seriesAllStatuses.labels.map((d, idx) =>
+                    rangeDays <= 10 ? d.slice(5) : idx % Math.ceil(rangeDays / 6) === 0 ? d.slice(5) : ''
+                  ),
+                  datasets: seriesAllStatuses.datasets,
+                  legend: ['Submitted', 'In Progress', 'Resolved', 'Overdue'],
+                }}
+                width={width - 32}
+                height={220}
+                chartConfig={chartConfig}
+                bezier
+                withDots
+                withShadow={false}
+                style={{ borderRadius: 12 }}
+              />
+            )}
+          </View>
+
+          <View style={styles.chartCard}>
+            <Text style={styles.chartTitle}>Category trends ({selectedCategory})</Text>
+            {loading ? (
+              <ActivityIndicator color="#111827" />
+            ) : (
+              <LineChart
+                data={{
+                  labels: seriesByCategory.labels.map((d, idx) =>
+                    rangeDays <= 10 ? d.slice(5) : idx % Math.ceil(rangeDays / 6) === 0 ? d.slice(5) : ''
+                  ),
+                  datasets: seriesByCategory.datasets,
+                  legend: ['Submitted', 'In Progress', 'Resolved', 'Overdue'],
+                }}
+                width={width - 32}
+                height={220}
+                chartConfig={chartConfig}
+                bezier
+                withDots
+                withShadow={false}
+                style={{ borderRadius: 12 }}
+              />
+            )}
           </View>
         </View>
       </ScrollView>
@@ -92,194 +291,101 @@ export default function AnalyticsScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#F9FAFB'
-  },
-  scrollContainer: {
-    flex: 1
-  },
+  container: { flex: 1, backgroundColor: '#F9FAFB' },
+  scrollContainer: { flex: 1 },
   header: {
     paddingHorizontal: 16,
     paddingTop: 5,
     alignItems: 'center',
     flexDirection: 'row',
     justifyContent: 'space-between',
-    backgroundColor: '#ffffff',
-    paddingBottom: 16
+    backgroundColor: '#fff',
+    paddingBottom: 16,
   },
-  headerLeft: {
-    flexDirection: 'row',
-    alignItems: 'center'
-  },
-  headerLogo: {
-    width: 28,
-    height: 28,
-    borderRadius: 6,
-    marginRight: 8
-  },
-  appName: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#111827'
-  },
+  headerLeft: { flexDirection: 'row', alignItems: 'center' },
+  headerLogo: { width: 28, height: 28, borderRadius: 6, marginRight: 8 },
+  appName: { fontSize: 16, fontWeight: '700', color: '#111827' },
   langButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#fff',
     paddingVertical: 8,
     paddingHorizontal: 10,
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: '#E5E5EA'
+    borderColor: '#E5E5EA',
   },
-  langFlag: {
-    fontSize: 16,
-    marginRight: 6
-  },
-  langText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#111827'
-  },
-  langChevron: {
-    marginLeft: 6,
-    color: '#6B7280',
-    fontSize: 12
-  },
-  content: {
-    padding: 16
-  },
-  chartCard: {
-    backgroundColor: '#ffffff',
-    borderRadius: 16,
-    padding: 20,
-    marginBottom: 20,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 3.84,
-    elevation: 5,
-    alignItems: 'center'
-  },
-  chartTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#111827',
-    marginBottom: 20
-  },
-  pieChartContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 20
-  },
-  pieChart: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    marginRight: 20,
-    position: 'relative',
-    overflow: 'hidden'
-  },
-  pieSlice: {
-    position: 'absolute',
-    width: 120,
-    height: 120
-  },
-  slice1: {
-    backgroundColor: '#EF4444',
-    borderRadius: 60,
-    transform: [{ rotate: '0deg' }]
-  },
-  slice2: {
-    backgroundColor: '#374151',
-    width: 60,
-    height: 120,
-    borderTopRightRadius: 0,
-    borderBottomRightRadius: 0,
-    left: 0,
-    top: 0
-  },
-  slice3: {
-    backgroundColor: '#9CA3AF',
-    width: 60,
-    height: 60,
-    borderRadius: 0,
-    borderBottomLeftRadius: 60,
-    top: 60,
-    left: 0
-  },
-  legend: {
-    flex: 1
-  },
-  legendItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 8
-  },
-  legendDot: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    marginRight: 8
-  },
-  legendText: {
-    fontSize: 14,
-    color: '#374151'
-  },
-  detailsButton: {
-    backgroundColor: '#374151',
-    paddingVertical: 12,
-    paddingHorizontal: 24,
-    borderRadius: 8,
-    marginTop: 20,
-    width: '100%'
-  },
-  detailsButtonText: {
-    color: '#ffffff',
-    fontSize: 14,
-    fontWeight: '600',
-    textAlign: 'center'
-  },
-  statsGrid: {
+  langFlag: { fontSize: 16, marginRight: 6 },
+  langText: { fontSize: 14, fontWeight: '600', color: '#111827' },
+  langChevron: { marginLeft: 6, color: '#6B7280', fontSize: 12 },
+  content: { padding: 16 },
+
+  daysBoxRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 16
+    marginBottom: 12,
   },
-  statCard: {
-    backgroundColor: '#ffffff',
+  dayBox: {
+    flex: 1,
+    marginHorizontal: 4,
+    paddingVertical: 10,
+    borderRadius: 10,
+    backgroundColor: '#F3F4F6',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    alignItems: 'center',
+  },
+  dayBoxActive: { backgroundColor: '#111827', borderColor: '#111827' },
+  dayBoxText: { fontSize: 13, color: '#374151', fontWeight: '600' },
+  dayBoxTextActive: { color: '#fff' },
+
+  categoryRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 12 },
+  categoryChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F3F4F6',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
     borderRadius: 12,
-    padding: 16,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    marginHorizontal: 4,
+  },
+  categoryChipActive: { backgroundColor: '#111827', borderColor: '#111827' },
+  categoryIcon: { width: 18, height: 18, marginRight: 6 },
+  categoryText: { fontSize: 12, color: '#111', fontWeight: '600' },
+  categoryTextActive: { color: '#fff' },
+
+  moreChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#E5E7EB',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+    marginLeft: 8,
+  },
+  moreText: { marginLeft: 4, fontSize: 12, fontWeight: '600', color: '#111' },
+
+  dropdown: {
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    borderRadius: 10,
+    marginBottom: 16,
+  },
+
+  chartCard: { backgroundColor: 'transparent', marginBottom: 24 },
+  chartTitle: { fontSize: 16, fontWeight: '700', color: '#111', marginBottom: 8 },
+
+  statsGrid: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 16 },
+  statCard: {
+    backgroundColor: 'transparent',
+    borderBottomWidth: 1,
+    borderColor: '#E5E7EB',
+    padding: 12,
     width: (width - 48) / 2,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 1,
-    },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 2,
-    alignItems: 'center'
   },
-  statNumber: {
-    fontSize: 24,
-    fontWeight: '800',
-    color: '#111827',
-    marginTop: 8,
-    marginBottom: 4
-  },
-  statLabel: {
-    fontSize: 12,
-    color: '#6B7280',
-    textAlign: 'center',
-    marginBottom: 4
-  },
-  statChange: {
-    fontSize: 11,
-    color: '#10B981',
-    fontWeight: '500'
-  }
+  statNumber: { fontSize: 22, fontWeight: '800', color: '#111', marginTop: 8, marginBottom: 4 },
+  statLabel: { fontSize: 12, color: '#111', textAlign: 'center', marginBottom: 4 },
 });
