@@ -45,6 +45,29 @@ export default function AnalyticsScreen() {
   const [selectedPeriod, setSelectedPeriod] = useState('7d'); // 7d, 30d, 90d
   const [selectedChart, setSelectedChart] = useState('line'); // line, bar, pie
 
+  // Convert period to days for filtering
+  const getPeriodDays = (period: string) => {
+    switch (period) {
+      case '7d': return 7;
+      case '30d': return 30;
+      case '90d': return 90;
+      default: return 7;
+    }
+  };
+
+  // Filter reports by selected period
+  const getFilteredReportsByPeriod = useMemo(() => {
+    const days = getPeriodDays(selectedPeriod);
+    const cutoffDate = new Date();
+    cutoffDate.setDate(cutoffDate.getDate() - days);
+    
+    return reports.filter(report => {
+      if (!report.submittedAt) return false;
+      const reportDate = new Date(report.submittedAt);
+      return reportDate >= cutoffDate;
+    });
+  }, [reports, selectedPeriod]);
+
   // Fetch all reports
   const fetchAllReports = useCallback(async () => {
     setLoading(true);
@@ -73,10 +96,13 @@ export default function AnalyticsScreen() {
     fetchAllReports();
   }, [fetchAllReports]);
 
-  // Compute reports by status
+  // Compute reports by status (with period and filter)
   const byStatus = useMemo(() => {
     const counts = { submitted: 0, in_progress: 0, resolved: 0, closed: 0, overdue: 0 };
-    const filteredReports = reports.filter(r => {
+    
+    // First filter by period, then by category/department
+    const periodFilteredReports = getFilteredReportsByPeriod;
+    const filteredReports = periodFilteredReports.filter(r => {
       if (selectedFilter === 'All') return true;
       const cat = r?.issue?.category || 'Other';
       const dept = r?.assignedTo?.department || r?.department || 'Unassigned';
@@ -103,12 +129,16 @@ export default function AnalyticsScreen() {
       counts[s as keyof typeof counts] = (counts[s as keyof typeof counts] || 0) + 1;
     }
     return counts;
-  }, [reports, selectedFilter]);
+  }, [getFilteredReportsByPeriod, selectedFilter]);
 
-  // Total reports
+  // Total reports (with period and filter)
   const totalReports = useMemo(() => {
-    if (selectedFilter === 'All') return reports.length;
-    return reports.filter(r => {
+    // First filter by period, then by category/department
+    const periodFilteredReports = getFilteredReportsByPeriod;
+    
+    if (selectedFilter === 'All') return periodFilteredReports.length;
+    
+    return periodFilteredReports.filter(r => {
       const cat = r?.issue?.category || 'Other';
       const dept = r?.assignedTo?.department || r?.department || 'Unassigned';
 
@@ -128,7 +158,7 @@ export default function AnalyticsScreen() {
 
       return cat === selectedFilter || dept === selectedFilter || isMappedCategory;
     }).length;
-  }, [reports, selectedFilter]);
+  }, [getFilteredReportsByPeriod, selectedFilter]);
 
   // Categories & Departments
   const categoriesList = useMemo(() => {
@@ -163,18 +193,19 @@ export default function AnalyticsScreen() {
     return ['All', ...uniqueItems.sort()];
   }, [categoriesList, departmentsList]);
 
-  // Time window
+  // Time window (based on selected period)
   const timeWindow = useMemo(() => {
     const days: string[] = [];
     const now = new Date();
-    for (let i = rangeDays - 1; i >= 0; i--) {
+    const periodDays = getPeriodDays(selectedPeriod);
+    for (let i = periodDays - 1; i >= 0; i--) {
       const d = new Date(now.getTime() - i * 24 * 60 * 60 * 1000);
       days.push(d.toISOString().slice(0, 10));
     }
     return days;
-  }, [rangeDays]);
+  }, [selectedPeriod]);
 
-  // Series data for charts
+  // Series data for charts (with period filtering)
   const makeSeriesByStatus = useCallback(
     (status: 'submitted' | 'in_progress' | 'resolved' | 'overdue', filter?: string) => {
       const days = timeWindow;
@@ -184,7 +215,10 @@ export default function AnalyticsScreen() {
       }, {});
       const dataMap = { ...zeroMap };
 
-      for (const r of reports) {
+      // Use period-filtered reports
+      const periodFilteredReports = getFilteredReportsByPeriod;
+
+      for (const r of periodFilteredReports) {
         if (filter && filter !== 'All') {
           const cat = r?.issue?.category || 'Other';
           const dept = r?.assignedTo?.department || r?.department || 'Unassigned';
@@ -213,7 +247,7 @@ export default function AnalyticsScreen() {
 
       return { labels: days, datasets: [{ data: days.map((d: string) => dataMap[d]), strokeWidth: 3 }] };
     },
-    [reports, timeWindow]
+    [getFilteredReportsByPeriod, timeWindow]
   );
 
   const seriesSubmitted = useMemo(() => makeSeriesByStatus('submitted', selectedFilter), [makeSeriesByStatus, selectedFilter]);
@@ -295,6 +329,11 @@ export default function AnalyticsScreen() {
           strokeWidth: 3,
         },
         {
+          data: seriesInProgress.datasets[0].data,
+          color: (opacity = 1) => `rgba(245, 158, 11, ${opacity})`,
+          strokeWidth: 3,
+        },
+        {
           data: seriesResolved.datasets[0].data,
           color: (opacity = 1) => `rgba(16, 185, 129, ${opacity})`,
           strokeWidth: 3,
@@ -316,47 +355,30 @@ export default function AnalyticsScreen() {
   };
 
   const preparePieChartData = () => {
-    // Get actual filtered reports by category
-    const filteredReports = reports.filter(r => {
-      if (selectedFilter === 'All') return true;
-      const cat = r?.issue?.category || 'Other';
-      const dept = r?.assignedTo?.department || r?.department || 'Unassigned';
-
-      const departmentMapping: Record<string, string | string[]> = {
-        ROAD_DEPT: 'Road',
-        ELECTRICITY_DEPT: 'Electricity',
-        SEWAGE_DEPT: 'Sewage',
-        CLEANLINESS_DEPT: ['Cleanliness', 'Dustbin Full'],
-        WATER_DEPT: 'Water',
-        STREETLIGHT_DEPT: 'Streetlight',
-      };
-
-      const mappedCategory = departmentMapping[selectedFilter as keyof typeof departmentMapping];
-      const isMappedCategory = Array.isArray(mappedCategory)
-        ? mappedCategory.includes(cat)
-        : mappedCategory && cat === mappedCategory;
-
-      return cat === selectedFilter || dept === selectedFilter || isMappedCategory;
-    });
-
-    // Count reports by category
-    const categoryCounts: Record<string, number> = {};
-    filteredReports.forEach(r => {
-      const category = r?.issue?.category || 'Other';
-      categoryCounts[category] = (categoryCounts[category] || 0) + 1;
-    });
-
-    // Convert to pie chart format
-    const colors = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899', '#06B6D4'];
-    let colorIndex = 0;
-
-    return Object.entries(categoryCounts).map(([category, count]) => ({
-      name: category,
-      population: count,
-      color: colors[colorIndex++ % colors.length],
-      legendFontColor: '#7F7F7F',
-      legendFontSize: 12,
-    }));
+    // Use the filtered status data (byStatus) for pie chart
+    return [
+      {
+        name: 'Submitted',
+        population: byStatus.submitted,
+        color: '#3B82F6',
+        legendFontColor: '#7F7F7F',
+        legendFontSize: 12,
+      },
+      {
+        name: 'In Progress',
+        population: byStatus.in_progress,
+        color: '#F59E0B',
+        legendFontColor: '#7F7F7F',
+        legendFontSize: 12,
+      },
+      {
+        name: 'Resolved',
+        population: byStatus.resolved + byStatus.closed,
+        color: '#10B981',
+        legendFontColor: '#7F7F7F',
+        legendFontSize: 12,
+      },
+    ].filter(item => item.population > 0); // Only show statuses with reports
   };
 
   // Refresh
@@ -537,7 +559,7 @@ export default function AnalyticsScreen() {
           <View style={styles.chartContainer}>
             {selectedChart === 'line' && (
               <>
-                <Text style={styles.chartTitle}>Report Trends ({selectedFilter})</Text>
+                <Text style={styles.chartTitle}>Report Trends ({selectedFilter}) - {selectedPeriod}</Text>
                 <LineChart
                   data={prepareLineChartData()}
                   width={width - 32}
@@ -551,7 +573,7 @@ export default function AnalyticsScreen() {
 
             {selectedChart === 'bar' && (
               <>
-                <Text style={styles.chartTitle}>Weekly Report Distribution ({selectedFilter})</Text>
+                <Text style={styles.chartTitle}>Weekly Report Distribution ({selectedFilter}) - {selectedPeriod}</Text>
                 <BarChart
                   data={prepareBarChartData()}
                   width={width - 32}
@@ -566,7 +588,7 @@ export default function AnalyticsScreen() {
 
             {selectedChart === 'pie' && (
               <>
-                <Text style={styles.chartTitle}>Reports by Category ({selectedFilter})</Text>
+                <Text style={styles.chartTitle}>Report Status Distribution ({selectedFilter}) - {selectedPeriod}</Text>
                 <PieChart
                   data={preparePieChartData()}
                   width={width - 32}
@@ -603,9 +625,9 @@ export default function AnalyticsScreen() {
             </View>
           </View>
 
-          {/* Category Breakdown - Filtered Data */}
+          {/* Status Breakdown - Filtered Data */}
           <View style={styles.priorityContainer}>
-            <Text style={styles.sectionTitle}>Category Distribution ({selectedFilter})</Text>
+            <Text style={styles.sectionTitle}>Status Distribution ({selectedFilter})</Text>
             {preparePieChartData().map((item, index) => (
               <View key={index} style={styles.priorityItem}>
                 <View style={styles.priorityLeft}>
@@ -786,7 +808,7 @@ const styles = StyleSheet.create({
   },
   chartContainer: {
     backgroundColor: '#fff',
-    borderRadius: 12,
+    borderRadius: 1,
     padding: 16,
     marginBottom: 16,
     shadowColor: '#000',
@@ -800,14 +822,21 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#374151',
     marginBottom: 16,
+
     textAlign: 'center',
   },
   chart: {
+    
     borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    alignSelf: 'center',
+    width: '100%',
+    marginTop: 10,
   },
   statusContainer: {
     backgroundColor: '#fff',
-    borderRadius: 12,
+    borderRadius: 1,
     padding: 16,
     marginBottom: 16,
     shadowColor: '#000',
