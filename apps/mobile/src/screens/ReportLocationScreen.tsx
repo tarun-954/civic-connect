@@ -191,6 +191,7 @@ export default function ReportLocationScreen({ navigation, route }: any) {
               coordinates: location ? `${location.latitude}, ${location.longitude}` : '',
               address: location ? `Location: ${location.latitude}, ${location.longitude}` : '',
             };
+            console.log('🔍 ReportLocationScreen - completeReportData:', JSON.stringify(completeReportData, null, 2));
             navigation.navigate('ReportPreview', { reportData: completeReportData });
           }}
         >

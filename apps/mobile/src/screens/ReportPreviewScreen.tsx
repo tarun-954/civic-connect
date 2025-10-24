@@ -89,6 +89,17 @@ const ReportPreviewScreen: React.FC<ReportPreviewScreenProps> = ({ navigation, r
 
   const mapCoordinates = parseCoordinates();
 
+  // Debug logging
+  console.log('🔍 ReportPreviewScreen - reportData:', JSON.stringify(reportData, null, 2));
+  console.log('🔍 ReportPreviewScreen - mapCoordinates:', mapCoordinates);
+  console.log('🔍 ReportPreviewScreen - displayData.location:', {
+    latitude: mapCoordinates.latitude,
+    longitude: mapCoordinates.longitude,
+    address: reportData?.location?.address || reportData?.address || 'Location not specified',
+    coordinates: `${mapCoordinates.latitude}, ${mapCoordinates.longitude}`,
+    accuracy: reportData?.location?.accuracy || null,
+  });
+
   useEffect(() => {
     (async () => {
       // Prefer remote profile if token exists; fallback to local cache
@@ -212,8 +223,11 @@ const ReportPreviewScreen: React.FC<ReportPreviewScreenProps> = ({ navigation, r
       photos: reportData?.attachments || [],
     },
     location: {
-      address: reportData?.address || 'Location not specified',
-      coordinates: reportData?.coordinates || 'Coordinates not available',
+      latitude: mapCoordinates.latitude,
+      longitude: mapCoordinates.longitude,
+      address: reportData?.location?.address || reportData?.address || 'Location not specified',
+      coordinates: `${mapCoordinates.latitude}, ${mapCoordinates.longitude}`,
+      accuracy: reportData?.location?.accuracy || null,
     },
     assignment: {
       department: 'Sanitation Department', // This could be determined by category
