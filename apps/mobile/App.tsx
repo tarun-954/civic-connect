@@ -17,6 +17,7 @@ import DepartmentIssuesScreen from './src/screens/DepartmentIssuesScreen';
 import DepartmentAnalyticsScreen from './src/screens/DepartmentAnalyticsScreen';
 import DepartmentNotificationsScreen from './src/screens/DepartmentNotificationsScreen';
 import DepartmentMapScreen from './src/screens/DepartmentMapScreen';
+import DepartmentSettingsScreen from './src/screens/DepartmentSettingsScreen';
 import ReportIssueScreen from './src/screens/ReportIssueScreen';
 import ReportLocationScreen from './src/screens/ReportLocationScreen';
 import TrackReportScreen from './src/screens/TrackReportScreen';
@@ -83,7 +84,7 @@ function DepartmentTabs() {
           else if (route.name === 'Issues') iconName = 'list';
           else if (route.name === 'Analytics') iconName = 'bar-chart-2';
           else if (route.name === 'Map') iconName = 'map';
-          else if (route.name === 'Notifications') iconName = 'bell';
+          else if (route.name === 'Settings') iconName = 'settings';
           return <Feather name={iconName} size={size} color={color} />;
         },
         tabBarActiveTintColor: '#159D7E',
@@ -103,7 +104,7 @@ function DepartmentTabs() {
       <Tab.Screen name="Issues" component={DepartmentIssuesScreen} options={{ tabBarLabel: 'Issues' }} />
       <Tab.Screen name="Analytics" component={DepartmentAnalyticsScreen} options={{ tabBarLabel: 'Analytics' }} />
       <Tab.Screen name="Map" component={DepartmentMapScreen} options={{ tabBarLabel: 'Map' }} />
-      <Tab.Screen name="Notifications" component={DepartmentNotificationsScreen} options={{ tabBarLabel: 'Notifications' }} />
+      <Tab.Screen name="Settings" component={DepartmentSettingsScreen} options={{ tabBarLabel: 'Settings' }} />
     </Tab.Navigator>
   );
 }

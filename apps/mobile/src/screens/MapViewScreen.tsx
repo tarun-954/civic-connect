@@ -6,13 +6,13 @@ import {
   ActivityIndicator,
   Dimensions,
   TouchableOpacity,
-  Image,
-  Linking,
   FlatList,
+  TextInput,
+  Linking,
 } from 'react-native';
 import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
-import { ApiService } from '../services/api';
 import { Feather } from '@expo/vector-icons';
+import { ApiService } from '../services/api';
 
 const { width, height } = Dimensions.get('window');
 
@@ -21,7 +21,10 @@ export default function MapViewScreen() {
   const [reports, setReports] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedReport, setSelectedReport] = useState<any>(null);
+  const [searchText, setSearchText] = useState('');
+  const [filteredReports, setFilteredReports] = useState<any[]>([]);
 
+  // Load reports
   const loadReports = async () => {
     try {
       setLoading(true);
@@ -33,6 +36,7 @@ export default function MapViewScreen() {
         return isFinite(lat) && isFinite(lng) && lat !== 0 && lng !== 0;
       });
       setReports(filtered);
+      setFilteredReports(filtered);
     } catch (err) {
       console.log('Error fetching reports:', err);
     } finally {
@@ -43,6 +47,18 @@ export default function MapViewScreen() {
   useEffect(() => {
     loadReports();
   }, []);
+
+  // Filter reports by search text
+  useEffect(() => {
+    if (!searchText) {
+      setFilteredReports(reports);
+    } else {
+      const filtered = reports.filter(r =>
+        r.issue?.category?.toLowerCase().includes(searchText.toLowerCase())
+      );
+      setFilteredReports(filtered);
+    }
+  }, [searchText, reports]);
 
   const getMarkerType = (status?: string, submittedAt?: string) => {
     if (status === 'resolved' || status === 'closed') return 'resolved';
@@ -56,38 +72,45 @@ export default function MapViewScreen() {
 
   const getMarkerColor = (type: string) => {
     switch (type) {
-      case 'resolved': return '#10B981';
-      case 'in_progress': return '#EF4444';
-      case 'overdue': return '#F59E0B';
-      default: return '#3B82F6';
+      case 'resolved':
+        return '#10B981'; // green
+      case 'in_progress':
+        return '#EF4444'; // red
+      case 'overdue':
+        return '#F59E0B'; // orange
+      default:
+        return '#3B82F6'; // blue
     }
   };
 
   const getMarkerIcon = (type: string) => {
     switch (type) {
-      case 'resolved': return 'check-circle';
-      case 'in_progress': return 'clock';
-      case 'overdue': return 'alert-triangle';
-      default: return 'map-pin';
+      case 'resolved':
+        return 'check-circle';
+      case 'in_progress':
+        return 'clock';
+      case 'overdue':
+        return 'alert-triangle';
+      default:
+        return 'map-pin';
     }
   };
 
-  // Fit all markers to view
+  // Fit all markers to map
   useEffect(() => {
-    if (reports.length > 0 && mapRef.current) {
-      const coords = reports.map(r => ({
+    if (filteredReports.length > 0 && mapRef.current) {
+      const coords = filteredReports.map(r => ({
         latitude: Number(r.location.latitude),
         longitude: Number(r.location.longitude),
       }));
-
       setTimeout(() => {
         mapRef.current?.fitToCoordinates(coords, {
           edgePadding: { top: 100, right: 100, bottom: 100, left: 100 },
           animated: true,
         });
-      }, 600);
+      }, 500);
     }
-  }, [reports]);
+  }, [filteredReports]);
 
   const handleMarkerPress = (report: any) => {
     setSelectedReport(report);
@@ -107,6 +130,20 @@ export default function MapViewScreen() {
 
   return (
     <View style={styles.container}>
+      {/* Search Bar */}
+      <View style={styles.searchContainer}>
+        <TextInput
+          placeholder="Search by category"
+          value={searchText}
+          onChangeText={setSearchText}
+          style={styles.searchInput}
+        />
+        <TouchableOpacity style={styles.filterButton}>
+          <Feather name="filter" size={20} color="#fff" />
+        </TouchableOpacity>
+      </View>
+
+      {/* Google Map */}
       <MapView
         ref={mapRef}
         provider={PROVIDER_GOOGLE}
@@ -115,18 +152,18 @@ export default function MapViewScreen() {
         showsMyLocationButton
         loadingEnabled
         initialRegion={{
-          latitude: reports[0]?.location?.latitude || 20.5937,
-          longitude: reports[0]?.location?.longitude || 78.9629,
+          latitude: filteredReports[0]?.location?.latitude || 20.5937,
+          longitude: filteredReports[0]?.location?.longitude || 78.9629,
           latitudeDelta: 5,
           longitudeDelta: 5,
         }}
       >
-        {reports.map((r, i) => {
+        {filteredReports.map((r, i) => {
           const lat = Number(r.location.latitude);
           const lng = Number(r.location.longitude);
-          const markerType = getMarkerType(r.status, r.submittedAt);
-          const color = getMarkerColor(markerType);
-          const icon = getMarkerIcon(markerType);
+          const type = getMarkerType(r.status, r.submittedAt);
+          const color = getMarkerColor(type);
+          const icon = getMarkerIcon(type);
 
           return (
             <Marker
@@ -134,8 +171,8 @@ export default function MapViewScreen() {
               coordinate={{ latitude: lat, longitude: lng }}
               title={r.issue?.category || 'Report'}
               description={r.location?.address || ''}
-              tracksViewChanges={false}
               onPress={() => handleMarkerPress(r)}
+              tracksViewChanges={false}
             >
               <View
                 style={[
@@ -151,17 +188,19 @@ export default function MapViewScreen() {
         })}
       </MapView>
 
-      {/* Bottom scrollable list */}
-      {reports.length > 0 && (
+      {/* Scrollable report list */}
+      {filteredReports.length > 0 && (
         <View style={styles.listContainer}>
-          <Text style={styles.listTitle}>Reports ({reports.length})</Text>
+          <Text style={styles.listTitle}>Reports ({filteredReports.length})</Text>
           <FlatList
-            data={reports}
+            data={filteredReports}
             horizontal
             showsHorizontalScrollIndicator={false}
             keyExtractor={(item, index) => item._id || index.toString()}
             renderItem={({ item }) => {
-              const color = getMarkerColor(getMarkerType(item.status, item.submittedAt));
+              const type = getMarkerType(item.status, item.submittedAt);
+              const color = getMarkerColor(type);
+
               return (
                 <TouchableOpacity
                   style={[styles.reportCard, { borderLeftColor: color }]}
@@ -204,6 +243,34 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   map: { width, height },
   loaderContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+
+  // Search bar
+  searchContainer: {
+    position: 'absolute',
+    top: 15,
+    left: 16,
+    right: 16,
+    flexDirection: 'row',
+    zIndex: 10,
+  },
+  searchInput: {
+    flex: 1,
+    backgroundColor: '#fff',
+    borderRadius: 20,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    fontSize: 14,
+    elevation: 3,
+  },
+  filterButton: {
+    marginLeft: 8,
+    backgroundColor: '#3B82F6',
+    borderRadius: 15,
+    padding: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+    elevation: 3,
+  },
 
   customMarker: {
     width: 34,
