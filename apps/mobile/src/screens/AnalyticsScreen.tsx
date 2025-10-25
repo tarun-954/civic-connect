@@ -15,6 +15,7 @@ import { ApiService } from '../services/api';
 import { LineChart, BarChart, PieChart } from 'react-native-chart-kit';
 import { Picker } from '@react-native-picker/picker';
 import { Feather } from '@expo/vector-icons';
+import { Fonts, TextStyles } from '../utils/fonts';
 
 const { width } = Dimensions.get('window');
 
@@ -711,7 +712,12 @@ const styles = StyleSheet.create({
   },
   headerLeft: { flexDirection: 'row', alignItems: 'center' },
   headerLogo: { width: 28, height: 28, borderRadius: 6, marginRight: 8 },
-  appName: { fontSize: 16, fontWeight: '700', color: '#111827' },
+  appName: { 
+    fontSize: 16, 
+    fontWeight: '700', 
+    color: '#111827',
+    fontFamily: Fonts.display.bold,
+  },
   langButton: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -736,6 +742,7 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: 'bold',
     color: '#111827',
+    fontFamily: Fonts.display.bold,
   },
   periodSelector: {
     flexDirection: 'row',
@@ -798,10 +805,12 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#111827',
     marginBottom: 4,
+    fontFamily: Fonts.display.bold,
   },
   metricLabel: {
     fontSize: 12,
     color: '#6b7280',
+    fontFamily: Fonts.primary.regular,
   },
   chartSelector: {
     flexDirection: 'row',

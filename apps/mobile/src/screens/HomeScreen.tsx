@@ -229,34 +229,32 @@ export default function HomeScreen({ navigation }: any) {
           </View>
         </View>
       </View>
+<View>
+<View style={{ 
+  flexDirection: 'row', 
+  alignItems: 'center', 
 
-      <View style={styles.statsContainer}>
-        <Text style={styles.impactTitle}>Community Impact</Text>
-        <View style={styles.pieChartContainer}>
-          <View style={styles.pieChart}>
-            <View style={[styles.pieSlice, styles.slice1]} />
-            <View style={[styles.pieSlice, styles.slice2]} />
-            <View style={[styles.pieSlice, styles.slice3]} />
-          </View>
-          <View style={styles.legend}>
-            <View style={styles.legendItem}>
-              <View style={[styles.legendDot, { backgroundColor: '#EF4444' }]} />
-              <Text style={styles.legendText}>Resolved Issues</Text>
-            </View>
-            <View style={styles.legendItem}>
-              <View style={[styles.legendDot, { backgroundColor: '#374151' }]} />
-              <Text style={styles.legendText}>Active Issues</Text>
-            </View>
-            <View style={styles.legendItem}>
-              <View style={[styles.legendDot, { backgroundColor: '#9CA3AF' }]} />
-              <Text style={styles.legendText}>Pending Review</Text>
-            </View>
-          </View>
-        </View>
-        <TouchableOpacity style={styles.detailsButton} onPress={() => navigation.navigate('Analytics')}>
-          <Text style={styles.detailsButtonText}>DISPLAY MORE DETAILS</Text>
-        </TouchableOpacity>
-      </View>
+  justifyContent: 'space-around',
+  padding: 14, 
+marginLeft :20,
+  marginTop: 4,
+  marginVertical: 16
+}}>
+  <View style={{ flex: 1 }}>
+    <Text style={{ fontSize: 26,fontWeight:"900",fontFamily:"Roboto" }}>Civic Connect</Text>
+    <Text style={{ fontSize: 15, color: '#000', fontWeight: '400' }}>Empowering citizens through transparency, technology, and trust.</Text>
+    <Text style={{ fontSize: 12, color: '#000', fontWeight: '400',fontStyle:'italic',textAlign:'center'}}>"by Narander Modi"</Text>
+
+    {/* Add more Text blocks below as needed */}
+  </View>
+  <Image 
+    source={require('../images/person.png')}
+    style={{ width: 180, height: 220, marginLeft: 2 }}
+    resizeMode="cover"
+  />
+</View>
+</View>
+      
 
       </ScrollView>
     </SafeAreaView>

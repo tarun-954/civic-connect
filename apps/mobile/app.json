@@ -46,6 +46,16 @@
         }
       ],
       "expo-font"
+    ],
+    "fonts": [
+      "./src/assets/fonts/OpenSans-Regular.ttf",
+      "./src/assets/fonts/OpenSans-Bold.ttf",
+      "./src/assets/fonts/Roboto-Regular.ttf",
+      "./src/assets/fonts/Roboto-Bold.ttf",
+      "./src/assets/fonts/Poppins-Regular.ttf",
+      "./src/assets/fonts/Poppins-Bold.ttf",
+      "./src/assets/fonts/Montserrat-Regular.ttf",
+      "./src/assets/fonts/Montserrat-Bold.ttf"
     ]
   }
 }
