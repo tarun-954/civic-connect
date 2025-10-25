@@ -132,26 +132,26 @@ export default function MapViewScreen() {
     <View style={styles.container}>
       {/* Search Bar */}
       <View style={styles.searchContainer}>
-        <TextInput
+            <TextInput
           placeholder="Search by category"
           value={searchText}
           onChangeText={setSearchText}
-          style={styles.searchInput}
-        />
+              style={styles.searchInput}
+            />
         <TouchableOpacity style={styles.filterButton}>
           <Feather name="filter" size={20} color="#fff" />
         </TouchableOpacity>
-      </View>
+        </View>
 
       {/* Google Map */}
-      <MapView
-        ref={mapRef}
+        <MapView
+          ref={mapRef}
         provider={PROVIDER_GOOGLE}
         style={styles.map}
         showsUserLocation
         showsMyLocationButton
         loadingEnabled
-        initialRegion={{
+          initialRegion={{
           latitude: filteredReports[0]?.location?.latitude || 20.5937,
           longitude: filteredReports[0]?.location?.longitude || 78.9629,
           latitudeDelta: 5,
@@ -186,7 +186,7 @@ export default function MapViewScreen() {
             </Marker>
           );
         })}
-      </MapView>
+        </MapView>
 
       {/* Scrollable report list */}
       {filteredReports.length > 0 && (
@@ -194,17 +194,17 @@ export default function MapViewScreen() {
           <Text style={styles.listTitle}>Reports ({filteredReports.length})</Text>
           <FlatList
             data={filteredReports}
-            horizontal
-            showsHorizontalScrollIndicator={false}
+          horizontal
+          showsHorizontalScrollIndicator={false}
             keyExtractor={(item, index) => item._id || index.toString()}
             renderItem={({ item }) => {
               const type = getMarkerType(item.status, item.submittedAt);
               const color = getMarkerColor(type);
 
-              return (
-                <TouchableOpacity
+            return (
+              <TouchableOpacity
                   style={[styles.reportCard, { borderLeftColor: color }]}
-                  onPress={() => {
+                onPress={() => {
                     setSelectedReport(item);
                     mapRef.current?.animateToRegion({
                       latitude: Number(item.location.latitude),
@@ -218,7 +218,7 @@ export default function MapViewScreen() {
                   <Text style={styles.reportAddress} numberOfLines={1}>
                     {item.location?.address || 'No address'}
                   </Text>
-                  <TouchableOpacity
+                    <TouchableOpacity
                     style={styles.navButton}
                     onPress={() =>
                       Linking.openURL(
@@ -228,9 +228,9 @@ export default function MapViewScreen() {
                   >
                     <Feather name="navigation" size={14} color="#fff" />
                     <Text style={styles.navText}>Navigate</Text>
-                  </TouchableOpacity>
-                </TouchableOpacity>
-              );
+                    </TouchableOpacity>
+              </TouchableOpacity>
+            );
             }}
           />
         </View>

@@ -213,15 +213,15 @@ export default function DepartmentAnalyticsScreen() {
             </View>
             <Text style={styles.metricNumber}>{mockAnalytics.avgResolutionTime}d</Text>
             <Text style={styles.metricLabel}>Avg Resolution</Text>
-          </View>
+            </View>
           <View style={styles.metricCard}>
             <View style={styles.metricIcon}>
               <Feather name="trending-up" size={24} color="#8B5CF6" />
             </View>
             <Text style={styles.metricNumber}>{mockAnalytics.responseTime.avg}h</Text>
             <Text style={styles.metricLabel}>Response Time</Text>
+            </View>
           </View>
-        </View>
 
         {/* Chart Type Selector */}
         <View style={styles.chartSelector}>
@@ -299,7 +299,7 @@ export default function DepartmentAnalyticsScreen() {
               />
             </>
           )}
-        </View>
+            </View>
 
         {/* Status Breakdown */}
         <View style={styles.statusContainer}>
@@ -309,19 +309,19 @@ export default function DepartmentAnalyticsScreen() {
               <View style={[styles.statusDot, { backgroundColor: '#3B82F6' }]} />
               <Text style={styles.statusLabel}>Pending</Text>
               <Text style={styles.statusCount}>{mockAnalytics.pendingIssues}</Text>
-            </View>
+              </View>
             <View style={styles.statusItem}>
               <View style={[styles.statusDot, { backgroundColor: '#F59E0B' }]} />
               <Text style={styles.statusLabel}>In Progress</Text>
               <Text style={styles.statusCount}>{mockAnalytics.inProgressIssues}</Text>
-            </View>
+              </View>
             <View style={styles.statusItem}>
               <View style={[styles.statusDot, { backgroundColor: '#10B981' }]} />
               <Text style={styles.statusLabel}>Resolved</Text>
               <Text style={styles.statusCount}>{mockAnalytics.resolvedIssues}</Text>
+              </View>
             </View>
           </View>
-        </View>
 
         {/* Priority Breakdown */}
         <View style={styles.priorityContainer}>
@@ -363,7 +363,7 @@ export default function DepartmentAnalyticsScreen() {
               <Text style={styles.responsePercent}>{mockAnalytics.responseTime.poor}%</Text>
             </View>
           </View>
-        </View>
+          </View>
       </ScrollView>
     </SafeAreaView>
   );

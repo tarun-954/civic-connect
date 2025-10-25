@@ -1,6 +1,12 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { SafeAreaView, View, Text, StyleSheet, Image, TouchableOpacity, FlatList, Dimensions, TextInput, ScrollView } from 'react-native';
-import LottieView from 'lottie-react-native';
+// Try to import Lottie, fallback to null if not available
+let LottieView: any = null;
+try {
+  LottieView = require('lottie-react-native').default;
+} catch (error) {
+  console.warn('Lottie not available, using fallback');
+}
 import { Feather } from '@expo/vector-icons';
 // Removed unused imports - now using auth context
 import { useAuth } from '../contexts/AuthContext';
@@ -151,7 +157,7 @@ export default function HomeScreen({ navigation }: any) {
                 </TouchableOpacity>
               </View>
               <View style={styles.slideRight}>
-                {item.lottie ? (
+                {item.lottie && LottieView ? (
                   <LottieView
                     source={{ uri: item.lottie }}
                     autoPlay

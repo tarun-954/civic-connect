@@ -15,6 +15,13 @@ import { ApiService } from '../services/api';
 import { LineChart, BarChart, PieChart } from 'react-native-chart-kit';
 import { Picker } from '@react-native-picker/picker';
 import { Feather } from '@expo/vector-icons';
+// Try to import Lottie, fallback to null if not available
+let LottieView: any = null;
+try {
+  LottieView = require('lottie-react-native').default;
+} catch (error) {
+  console.warn('Lottie not available, using fallback');
+}
 
 const { width } = Dimensions.get('window');
 
@@ -398,7 +405,7 @@ export default function AnalyticsScreen() {
       borderRadius: 16,
     },
     propsForDots: {
-      r: '6',
+      r: '2',
       strokeWidth: '2',
       stroke: '#3B82F6',
     },
@@ -480,11 +487,11 @@ export default function AnalyticsScreen() {
           </View>
 
           {/* Filter Section - Moved to Top */}
-          <View style={styles.filterContainer}>
+        <View style={styles.filterContainer}>
             <Text style={styles.sectionTitle}>Filter Reports by Department/Category</Text>
             <View style={styles.dropdown}>
               <Picker selectedValue={selectedFilter} onValueChange={val => setSelectedFilter(val)}>
-                {combinedList.map(item => (
+          {combinedList.map(item => (
                   <Picker.Item key={item} label={item} value={item} />
                 ))}
               </Picker>
@@ -495,28 +502,64 @@ export default function AnalyticsScreen() {
           <View style={styles.metricsContainer}>
             <View style={styles.metricCard}>
               <View style={styles.metricIcon}>
-                <Feather name="file-text" size={24} color="#3B82F6" />
+                {LottieView ? (
+                  <LottieView
+                    source={{ uri: 'https://lottie.host/6a90851b-442f-44fa-b919-d67966d85d78/qTdanFwxhm.lottie' }}
+                    autoPlay
+                    loop
+                    style={styles.lottieIcon}
+                  />
+                ) : (
+                  <Feather name="file-text" size={24} color="#3B82F6" />
+                )}
               </View>
               <Text style={styles.metricNumber}>{totalReports}</Text>
               <Text style={styles.metricLabel}>Total Reports ({selectedFilter})</Text>
             </View>
             <View style={styles.metricCard}>
               <View style={styles.metricIcon}>
-                <Feather name="check-circle" size={24} color="#10B981" />
+                {LottieView ? (
+                  <LottieView
+                    source={{ uri: 'https://lottie.host/6a90851b-442f-44fa-b919-d67966d85d78/qTdanFwxhm.lottie' }}
+                    autoPlay
+                    loop
+                    style={styles.lottieIcon}
+                  />
+                ) : (
+                  <Feather name="check-circle" size={24} color="#10B981" />
+                )}
               </View>
               <Text style={styles.metricNumber}>{getPercentage(byStatus.resolved + byStatus.closed)}</Text>
               <Text style={styles.metricLabel}>Resolution Rate</Text>
             </View>
             <View style={styles.metricCard}>
               <View style={styles.metricIcon}>
-                <Feather name="clock" size={24} color="#F59E0B" />
+                {LottieView ? (
+                  <LottieView
+                    source={{ uri: 'https://lottie.host/6a90851b-442f-44fa-b919-d67966d85d78/qTdanFwxhm.lottie' }}
+                    autoPlay
+                    loop
+                    style={styles.lottieIcon}
+                  />
+                ) : (
+                  <Feather name="clock" size={24} color="#F59E0B" />
+                )}
               </View>
               <Text style={styles.metricNumber}>{byStatus.in_progress}</Text>
               <Text style={styles.metricLabel}>In Progress</Text>
             </View>
             <View style={styles.metricCard}>
               <View style={styles.metricIcon}>
-                <Feather name="trending-up" size={24} color="#8B5CF6" />
+                {LottieView ? (
+                  <LottieView
+                    source={{ uri: 'https://lottie.host/6a90851b-442f-44fa-b919-d67966d85d78/qTdanFwxhm.lottie' }}
+                    autoPlay
+                    loop
+                    style={styles.lottieIcon}
+                  />
+                ) : (
+                  <Feather name="trending-up" size={24} color="#8B5CF6" />
+                )}
               </View>
               <Text style={styles.metricNumber}>{byStatus.submitted}</Text>
               <Text style={styles.metricLabel}>Submitted</Text>
@@ -530,25 +573,25 @@ export default function AnalyticsScreen() {
               { key: 'bar', icon: 'bar-chart-2', label: 'Weekly' },
               { key: 'pie', icon: 'pie-chart', label: 'Categories' },
             ].map((chart) => (
-              <TouchableOpacity
+            <TouchableOpacity
                 key={chart.key}
-                style={[
+              style={[
                   styles.chartButton,
                   selectedChart === chart.key && styles.chartButtonActive,
-                ]}
+              ]}
                 onPress={() => setSelectedChart(chart.key)}
-              >
+            >
                 <Feather
                   name={chart.icon as any}
                   size={20}
                   color={selectedChart === chart.key ? '#fff' : '#6B7280'}
                 />
-                <Text
-                  style={[
+              <Text
+                style={[
                     styles.chartButtonText,
                     selectedChart === chart.key && styles.chartButtonTextActive,
-                  ]}
-                >
+                ]}
+              >
                   {chart.label}
               </Text>
             </TouchableOpacity>
@@ -560,7 +603,7 @@ export default function AnalyticsScreen() {
             {selectedChart === 'line' && (
               <>
                 <Text style={styles.chartTitle}>Report Trends ({selectedFilter}) - {selectedPeriod}</Text>
-                <LineChart
+            <LineChart
                   data={prepareLineChartData()}
                   width={width - 32}
                   height={220}
@@ -576,10 +619,10 @@ export default function AnalyticsScreen() {
                 <Text style={styles.chartTitle}>Weekly Report Distribution ({selectedFilter}) - {selectedPeriod}</Text>
                 <BarChart
                   data={prepareBarChartData()}
-                  width={width - 32}
+              width={width - 32}
                   height={220}
                   chartConfig={chartConfig}
-                  yAxisLabel=""
+              yAxisLabel=""
                   yAxisSuffix=""
                   style={styles.chart}
                 />
@@ -666,7 +709,7 @@ export default function AnalyticsScreen() {
               </View>
             </View>
           </View>
-        </View>
+          </View>
       </ScrollView>
     </SafeAreaView>
   );
@@ -755,13 +798,17 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   metricIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: '#f3f4f6',
+    width: 58,
+    height: 58,
+   
+    
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 8,
+  },
+  lottieIcon: {
+    width: 40,
+    height: 40,
   },
   metricNumber: {
     fontSize: 20,
@@ -811,6 +858,7 @@ const styles = StyleSheet.create({
     borderRadius: 1,
     padding: 16,
     marginBottom: 16,
+  
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
@@ -831,8 +879,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     alignSelf: 'center',
+    alignContent:'center',
     width: '100%',
     marginTop: 10,
+    
+   
   },
   statusContainer: {
     backgroundColor: '#fff',
