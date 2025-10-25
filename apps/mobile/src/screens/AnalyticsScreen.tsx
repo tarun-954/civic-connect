@@ -15,22 +15,15 @@ import { ApiService } from '../services/api';
 import { LineChart, BarChart, PieChart } from 'react-native-chart-kit';
 import { Picker } from '@react-native-picker/picker';
 import { Feather } from '@expo/vector-icons';
-// Try to import Lottie, fallback to null if not available
-let LottieView: any = null;
-try {
-  LottieView = require('lottie-react-native').default;
-} catch (error) {
-  console.warn('Lottie not available, using fallback');
-}
 
 const { width } = Dimensions.get('window');
 
 // Icons for stats
 const statIcons = [
-  require('../images/icons8-person-100.png'), // Total Report
-  require('../images/icons8-construction-64.png'),
-  require('../images/icons8-success-64 (1).png'), // Resolved
-  require('../images/icons8-why-quest-48.png'), // Submitted
+  require('../images/edit.gif'), // Total Report
+  require('../images/edit.gif'),
+  require('../images/edit.gif'), // Resolved
+  require('../images/edit.gif'), // Submitted
 ];
 
 function LanguageSelector() {
@@ -502,67 +495,55 @@ export default function AnalyticsScreen() {
           <View style={styles.metricsContainer}>
             <View style={styles.metricCard}>
               <View style={styles.metricIcon}>
-                {LottieView ? (
-                  <LottieView
-                    source={{ uri: 'https://lottie.host/6a90851b-442f-44fa-b919-d67966d85d78/qTdanFwxhm.lottie' }}
-                    autoPlay
-                    loop
-                    style={styles.lottieIcon}
-                  />
-                ) : (
-                  <Feather name="file-text" size={24} color="#3B82F6" />
-                )}
+                <Image 
+                  source={require('../images/files.gif')} 
+                  style={styles.gifIcon}
+                  resizeMode="contain"
+                />
               </View>
-              <Text style={styles.metricNumber}>{totalReports}</Text>
-              <Text style={styles.metricLabel}>Total Reports ({selectedFilter})</Text>
+              <View style={styles.metricContent}>
+                <Text style={styles.metricNumber}>{totalReports}</Text>
+                <Text style={styles.metricLabel}>Total Reports ({selectedFilter})</Text>
+              </View>
             </View>
             <View style={styles.metricCard}>
               <View style={styles.metricIcon}>
-                {LottieView ? (
-                  <LottieView
-                    source={{ uri: 'https://lottie.host/6a90851b-442f-44fa-b919-d67966d85d78/qTdanFwxhm.lottie' }}
-                    autoPlay
-                    loop
-                    style={styles.lottieIcon}
-                  />
-                ) : (
-                  <Feather name="check-circle" size={24} color="#10B981" />
-                )}
+                <Image 
+                  source={require('../images/heart.gif')} 
+                  style={styles.gifIcon}
+                  resizeMode="contain"
+                />
               </View>
-              <Text style={styles.metricNumber}>{getPercentage(byStatus.resolved + byStatus.closed)}</Text>
-              <Text style={styles.metricLabel}>Resolution Rate</Text>
+              <View style={styles.metricContent}>
+                <Text style={styles.metricNumber}>{getPercentage(byStatus.resolved + byStatus.closed)}</Text>
+                <Text style={styles.metricLabel}>Resolution Rate</Text>
+              </View>
             </View>
             <View style={styles.metricCard}>
               <View style={styles.metricIcon}>
-                {LottieView ? (
-                  <LottieView
-                    source={{ uri: 'https://lottie.host/6a90851b-442f-44fa-b919-d67966d85d78/qTdanFwxhm.lottie' }}
-                    autoPlay
-                    loop
-                    style={styles.lottieIcon}
-                  />
-                ) : (
-                  <Feather name="clock" size={24} color="#F59E0B" />
-                )}
+                <Image 
+                  source={require('../images/grinder.gif')} 
+                  style={styles.gifIcon}
+                  resizeMode="contain"
+                />
               </View>
-              <Text style={styles.metricNumber}>{byStatus.in_progress}</Text>
-              <Text style={styles.metricLabel}>In Progress</Text>
+              <View style={styles.metricContent}>
+                <Text style={styles.metricNumber}>{byStatus.in_progress}</Text>
+                <Text style={styles.metricLabel}>In Progress</Text>
+              </View>
             </View>
             <View style={styles.metricCard}>
               <View style={styles.metricIcon}>
-                {LottieView ? (
-                  <LottieView
-                    source={{ uri: 'https://lottie.host/6a90851b-442f-44fa-b919-d67966d85d78/qTdanFwxhm.lottie' }}
-                    autoPlay
-                    loop
-                    style={styles.lottieIcon}
-                  />
-                ) : (
-                  <Feather name="trending-up" size={24} color="#8B5CF6" />
-                )}
+                <Image 
+                  source={require('../images/discussion.gif')} 
+                  style={styles.gifIcon}
+                  resizeMode="contain"
+                />
               </View>
-              <Text style={styles.metricNumber}>{byStatus.submitted}</Text>
-              <Text style={styles.metricLabel}>Submitted</Text>
+              <View style={styles.metricContent}>
+                <Text style={styles.metricNumber}>{byStatus.submitted}</Text>
+                <Text style={styles.metricLabel}>Submitted</Text>
+              </View>
             </View>
           </View>
 
@@ -790,6 +771,7 @@ const styles = StyleSheet.create({
     padding: 16,
     width: '48%',
     marginBottom: 12,
+    flexDirection: 'row',
     alignItems: 'center',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
@@ -798,17 +780,18 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   metricIcon: {
-    width: 58,
-    height: 58,
-   
-    
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  lottieIcon: {
     width: 40,
     height: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  gifIcon: {
+    width: 40,
+    height: 40,
+  },
+  metricContent: {
+    flex: 1,
   },
   metricNumber: {
     fontSize: 20,
@@ -819,7 +802,6 @@ const styles = StyleSheet.create({
   metricLabel: {
     fontSize: 12,
     color: '#6b7280',
-    textAlign: 'center',
   },
   chartSelector: {
     flexDirection: 'row',
