@@ -5,6 +5,7 @@ const Report = require('../models/Report');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
+const NotificationService = require('../services/notificationService');
 
 const router = express.Router();
 
@@ -151,6 +152,15 @@ router.post('/submit', validateReportSubmission, async (req, res) => {
         }
         throw err; // propagate other errors
       }
+    }
+
+    // Send notifications
+    try {
+      await NotificationService.onReportSubmitted(savedReport);
+      console.log('✅ Notifications sent successfully');
+    } catch (notificationError) {
+      console.error('⚠️ Failed to send notifications:', notificationError);
+      // Don't fail the request if notifications fail
     }
 
     // Return success response

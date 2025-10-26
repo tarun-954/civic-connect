@@ -45,7 +45,15 @@
           "locationAlwaysAndWhenInUsePermission": "Allow Civic Connect to use your location to report issues accurately."
         }
       ],
-      "expo-font"
+      "expo-font",
+      [
+        "expo-notifications",
+        {
+          "icon": "./src/images/logoimage.png",
+          "color": "#0B5CAB",
+          "sounds": []
+        }
+      ]
     ],
     "fonts": [
       "./src/assets/fonts/OpenSans-Regular.ttf",

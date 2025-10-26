@@ -248,6 +248,63 @@ export class ApiService {
     }
   }
 
+  // Get user notifications
+  static async getUserNotifications(): Promise<any> {
+    try {
+      const headers = { ...(await this.authHeaders()) } as any;
+      const response = await fetch(`${this.baseURL}/notifications/user`, { headers });
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.message || 'Failed to fetch notifications');
+      }
+
+      return result;
+    } catch (error) {
+      console.error('Error fetching user notifications:', error);
+      throw error;
+    }
+  }
+
+  // Mark notification as read
+  static async markNotificationAsRead(notificationId: string): Promise<any> {
+    try {
+      const headers = { ...(await this.authHeaders()) } as any;
+      const response = await fetch(`${this.baseURL}/notifications/user/${notificationId}/read`, {
+        method: 'PATCH',
+        headers
+      });
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.message || 'Failed to mark notification as read');
+      }
+
+      return result;
+    } catch (error) {
+      console.error('Error marking notification as read:', error);
+      throw error;
+    }
+  }
+
+  // Get unread notification count
+  static async getUnreadNotificationCount(): Promise<any> {
+    try {
+      const headers = { ...(await this.authHeaders()) } as any;
+      const response = await fetch(`${this.baseURL}/notifications/user/unread-count`, { headers });
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.message || 'Failed to fetch unread count');
+      }
+
+      return result;
+    } catch (error) {
+      console.error('Error fetching unread count:', error);
+      throw error;
+    }
+  }
+
   // Upload image to server
   static async uploadImage(imageUri: string): Promise<string> {
     try {

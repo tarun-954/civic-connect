@@ -1,5 +1,5 @@
 // apps/mobile/App.tsx
-import React from 'react';
+import React, { useEffect } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
@@ -11,6 +11,7 @@ import DepartmentSignUpScreen from './src/screens/DepartmentSignUpScreen';
 import HomeScreen from './src/screens/HomeScreen';
 import MapViewScreen from './src/screens/MapViewScreen';
 import AnalyticsScreen from './src/screens/AnalyticsScreen';
+import NotificationsScreen from './src/screens/NotificationsScreen';
 import SettingsScreen from './src/screens/SettingsScreen';
 import DepartmentDashboardScreen from './src/screens/DepartmentDashboardScreen';
 import DepartmentIssuesScreen from './src/screens/DepartmentIssuesScreen';
@@ -27,6 +28,7 @@ import { useFonts } from 'expo-font';
 import { Text, View, ActivityIndicator } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { AuthProvider, useAuth } from './src/contexts/AuthContext';
+import NativeNotificationService from './src/services/notificationService';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -133,12 +135,26 @@ function AppNavigator() {
     );
   }
 
+  // Setup notification listeners for navigation
+  useEffect(() => {
+    NativeNotificationService.setupListeners((data) => {
+      console.log('Notification received with data:', data);
+      // Handle notification tap - navigate to the appropriate screen
+      if (data?.type === 'new_report' && data?.reportId) {
+        // Navigation will be handled by the notification service
+        // For now, just log it
+        console.log('Navigate to report:', data.reportId);
+      }
+    });
+  }, []);
+
   return (
     <NavigationContainer>
       <Stack.Navigator screenOptions={{ headerShown: false }}>
         {isAuthenticated ? (
           <>
             <Stack.Screen name="MainTabs" component={MainTabs} />
+            <Stack.Screen name="Notifications" component={NotificationsScreen} />
             <Stack.Screen name="ReportIssue" component={ReportIssueScreen} />
             <Stack.Screen name="ReportLocation" component={ReportLocationScreen} />
             <Stack.Screen name="TrackReport" component={TrackReportScreen} />
@@ -161,6 +177,25 @@ export default function App() {
   const [loaded, error] = useFonts({
     'Inter': require('./src/assets/fonts/inter.ttf'),
   });
+
+  // Initialize notification service
+  useEffect(() => {
+    const initializeNotifications = async () => {
+      try {
+        await NativeNotificationService.requestPermissions();
+        console.log('Notification permissions granted');
+      } catch (error) {
+        console.error('Error initializing notifications:', error);
+      }
+    };
+
+    initializeNotifications();
+
+    // Cleanup on unmount
+    return () => {
+      NativeNotificationService.removeListeners();
+    };
+  }, []);
 
   if (!loaded && !error) {
     return null;

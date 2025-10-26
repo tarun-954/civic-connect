@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, SafeAreaView, Alert, Platform, Modal } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, SafeAreaView, Alert, Platform, Modal, Image } from 'react-native';
 import LottieView from 'lottie-react-native';
 import { useNavigation } from '@react-navigation/native';
 import { ApiService, OtpService, saveUserProfile } from '../services/api';
@@ -82,11 +82,10 @@ export default function SignUpScreen() {
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         <View style={styles.animationWrapper}>
-          <LottieView
-            source={{ uri: 'https://lottie.host/085df401-1133-473b-8a67-66227d4b6fa4/07SDJ6Qsfd.lottie' }}
-            autoPlay
-            loop
+          <Image
+            source={require('../images/logoimage.png')}
             style={styles.animation}
+            resizeMode="contain"
           />
         </View>
         <Text style={styles.title}>Create your account</Text>

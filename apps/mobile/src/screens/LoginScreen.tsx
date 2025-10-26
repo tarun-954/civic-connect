@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { SafeAreaView, View, Text, StyleSheet, TextInput, TouchableOpacity, Alert, ActivityIndicator, Modal } from 'react-native';
+import { SafeAreaView, View, Text, StyleSheet, TextInput, TouchableOpacity, Alert, ActivityIndicator, Modal, Image, Dimensions } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { OtpService, saveUserProfile, fetchMyProfile } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
+import { Fonts, TextStyles } from '../utils/fonts';
 
 export default function LoginScreen({ navigation }: any) {
   const { login } = useAuth();
@@ -82,48 +83,79 @@ export default function LoginScreen({ navigation }: any) {
 
   return (
     <SafeAreaView style={styles.container}>
-      <Text style={styles.title}>Login with OTP</Text>
+      <View style={styles.header}>
+        <View style={styles.logoContainer}>
+          <Image
+            source={require('../images/logoimage.png')}
+            style={styles.logo}
+            resizeMode="contain"
+          />
+        </View>
+        <Text style={styles.title}>Welcome Back</Text>
+        <Text style={styles.subtitle}>Enter your email to receive OTP</Text>
+      </View>
 
-      <View style={styles.toggleRow}>
-        <TouchableOpacity style={[styles.toggle, styles.toggleActive]}>
-          <Text style={[styles.toggleText, styles.toggleTextActive]}>Email</Text>
+      <View style={styles.form}>
+        <View style={styles.inputContainer}>
+          <Text style={styles.inputLabel}>Email Address</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="Enter your email"
+            placeholderTextColor="#9CA3AF"
+            keyboardType="email-address"
+            autoCapitalize="none"
+            value={target}
+            onChangeText={setTarget}
+          />
+        </View>
+
+        <TouchableOpacity 
+          style={[styles.button, loading && styles.buttonDisabled]} 
+          onPress={requestOtp} 
+          disabled={loading}
+        >
+          {loading ? (
+            <ActivityIndicator color="#fff" size="small" />
+          ) : (
+            <Text style={styles.buttonText}>Send OTP</Text>
+          )}
+        </TouchableOpacity>
+        
+        <View style={styles.divider}>
+          <View style={styles.dividerLine} />
+          <Text style={styles.dividerText}>or</Text>
+          <View style={styles.dividerLine} />
+        </View>
+
+        <TouchableOpacity 
+          style={styles.googleButton}
+          onPress={() => Alert.alert('Coming soon', 'Google sign-in will be enabled shortly.')}
+        >
+          <Text style={styles.googleButtonText}>Continue with Google</Text>
         </TouchableOpacity>
       </View>
 
-      <TextInput
-        style={styles.input}
-        placeholder={'Enter email address'}
-        keyboardType={'email-address'}
-        autoCapitalize={'none'}
-        value={target}
-        onChangeText={setTarget}
-      />
-
-
-      <TouchableOpacity style={[styles.button, loading && { opacity: 0.7 }]} onPress={requestOtp} disabled={loading}>
-        {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>Send OTP</Text>}
-      </TouchableOpacity>
-      
-      {/* OTP overlay is opened automatically when sending OTP */}
-      <View style={styles.linkRow}>
-        <Text style={styles.linkText}>New here? </Text>
-        <TouchableOpacity onPress={() => navigation.navigate('SignUp')} activeOpacity={0.8}>
-          <Text style={styles.linkEmphasis}>Create account</Text>
+      <View style={styles.footer}>
+        <View style={styles.linkRow}>
+          <Text style={styles.linkText}>New here? </Text>
+          <TouchableOpacity onPress={() => navigation.navigate('SignUp')} activeOpacity={0.8}>
+            <Text style={styles.linkEmphasis}>Create account</Text>
+          </TouchableOpacity>
+        </View>
+        
+        <TouchableOpacity 
+          style={styles.switchButton}
+          onPress={() => {
+            try {
+              navigation.navigate('DepartmentLogin');
+            } catch (error) {
+              console.error('Navigation error:', error);
+            }
+          }}
+        >
+          <Text style={styles.switchText}>Switch to Department Login</Text>
         </TouchableOpacity>
       </View>
-      
-      <TouchableOpacity 
-        style={styles.switchButton}
-        onPress={() => {
-          try {
-            navigation.navigate('DepartmentLogin');
-          } catch (error) {
-            console.error('Navigation error:', error);
-          }
-        }}
-      >
-        <Text style={styles.switchText}>Switch to Department Login</Text>
-      </TouchableOpacity>
       {otpVisible && (
         <View style={styles.overlayBackdrop}>
           <View style={styles.modalCard}>
@@ -194,51 +226,246 @@ export default function LoginScreen({ navigation }: any) {
   );
 }
 
+const { width } = Dimensions.get('window');
+
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 16, backgroundColor: '#F3F6FB' },
-  title: { fontSize: 22, fontWeight: '800', color: '#0A2E68', marginBottom: 16 },
-  toggleRow: { flexDirection: 'row', backgroundColor: '#F3F4F6', padding: 4, borderRadius: 12, marginBottom: 12 },
-  toggle: { flex: 1, alignItems: 'center', paddingVertical: 8, borderRadius: 8 },
-  toggleActive: { backgroundColor: '#fff' },
-  toggleText: { color: '#6B7280', fontWeight: '600' },
-  toggleTextActive: { color: '#111827' },
-  input: { borderWidth: 1, borderColor: '#E5E7EB', borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12, marginBottom: 12, fontSize: 16, backgroundColor: '#FAFBFF' },
-  button: { backgroundColor: '#0B5CAB', borderRadius: 12, alignItems: 'center', justifyContent: 'center', paddingVertical: 14 },
-  buttonText: { color: '#fff', fontSize: 16, fontWeight: '700' }
-  ,
-  linkRow: { marginTop: 12, flexDirection: 'row', justifyContent: 'center', alignItems: 'center' },
-  linkText: { color: '#6B7280' },
-  linkEmphasis: { color: '#0B5CAB', fontWeight: '700' },
-  modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', alignItems: 'center', justifyContent: 'center' },
-  overlayBackdrop: { position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.4)', alignItems: 'center', justifyContent: 'center' },
-  modalCard: { width: '86%', backgroundColor: '#FFFFFF', borderRadius: 14, padding: 16 },
-  modalTitle: { fontSize: 18, fontWeight: '800', color: '#111827' },
-  modalSub: { marginTop: 6, color: '#6B7280', marginBottom: 12 },
-  modalInput: { borderWidth: 1, borderColor: '#E5E7EB', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 12, fontSize: 16 },
-  modalActions: { flexDirection: 'row', justifyContent: 'flex-end', marginTop: 12 },
-  modalBtn: { paddingHorizontal: 14, paddingVertical: 10, borderRadius: 10, marginLeft: 8 },
-  modalCancel: { backgroundColor: '#F3F4F6' },
-  modalVerify: { backgroundColor: '#159D7E' },
-  modalCancelText: { color: '#111827', fontWeight: '600' },
-  modalVerifyText: { color: '#FFFFFF', fontWeight: '700' },
+  container: {
+    flex: 1,
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 24,
+  },
+  header: {
+    alignItems: 'center',
+    marginTop: 40,
+    marginBottom: 40,
+  },
+  logoContainer: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: '#F8FAFC',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 24,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  logo: {
+    width: 50,
+    height: 50,
+  },
+  title: {
+    fontSize: 28,
+    fontWeight: '700',
+    color: '#111827',
+    marginBottom: 8,
+    fontFamily: Fonts.display.bold,
+  },
+  subtitle: {
+    fontSize: 16,
+    color: '#6B7280',
+    textAlign: 'center',
+    fontFamily: Fonts.primary.regular,
+  },
+  form: {
+    flex: 1,
+  },
+  inputContainer: {
+    marginBottom: 24,
+  },
+  inputLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#374151',
+    marginBottom: 8,
+    fontFamily: Fonts.secondary.bold,
+  },
+  input: {
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    fontSize: 16,
+    backgroundColor: '#FAFBFF',
+    fontFamily: Fonts.primary.regular,
+  },
+  button: {
+    backgroundColor: '#0B5CAB',
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 16,
+    marginBottom: 20,
+    shadowColor: '#0B5CAB',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  buttonDisabled: {
+    opacity: 0.6,
+  },
+  buttonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '700',
+    fontFamily: Fonts.primary.bold,
+  },
+  divider: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: 20,
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: '#E5E7EB',
+  },
+  dividerText: {
+    marginHorizontal: 16,
+    color: '#9CA3AF',
+    fontSize: 14,
+    fontFamily: Fonts.primary.regular,
+  },
+  googleButton: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 16,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    marginBottom: 20,
+  },
+  googleButtonText: {
+    color: '#374151',
+    fontSize: 16,
+    fontWeight: '600',
+    fontFamily: Fonts.primary.bold,
+  },
+  footer: {
+    paddingBottom: 20,
+  },
+  linkRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  linkText: {
+    color: '#6B7280',
+    fontSize: 14,
+    fontFamily: Fonts.primary.regular,
+  },
+  linkEmphasis: {
+    color: '#0B5CAB',
+    fontWeight: '700',
+    fontSize: 14,
+    fontFamily: Fonts.primary.bold,
+  },
   switchButton: {
-    marginTop: 16,
     alignItems: 'center',
     padding: 12,
   },
   switchText: {
-    color: '#2563eb',
-    fontSize: 16,
+    color: '#6B7280',
+    fontSize: 14,
     fontWeight: '500',
+    fontFamily: Fonts.primary.regular,
+  },
+  // Modal styles
+  overlayBackdrop: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    top: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modalCard: {
+    width: width * 0.9,
+    maxWidth: 400,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    padding: 24,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.25,
+    shadowRadius: 20,
+    elevation: 10,
+  },
+  modalTitle: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: '#111827',
+    textAlign: 'center',
+    marginBottom: 8,
+    fontFamily: Fonts.display.bold,
+  },
+  modalSub: {
+    fontSize: 16,
+    color: '#6B7280',
+    textAlign: 'center',
+    marginBottom: 24,
+    fontFamily: Fonts.primary.regular,
+  },
+  modalInput: {
+    borderWidth: 2,
+    borderColor: '#E5E7EB',
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+    fontSize: 18,
+    textAlign: 'center',
+    letterSpacing: 4,
+    fontFamily: Fonts.primary.bold,
+    marginBottom: 24,
+  },
+  modalActions: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 8,
+  },
+  modalBtn: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: 'center',
+    marginHorizontal: 4,
+  },
+  modalCancel: {
+    backgroundColor: '#F3F4F6',
+  },
+  modalVerify: {
+    backgroundColor: '#0B5CAB',
+  },
+  modalCancelText: {
+    color: '#374151',
+    fontWeight: '600',
+    fontSize: 16,
+    fontFamily: Fonts.primary.bold,
+  },
+  modalVerifyText: {
+    color: '#FFFFFF',
+    fontWeight: '700',
+    fontSize: 16,
+    fontFamily: Fonts.primary.bold,
   },
   resendContainer: {
-    marginTop: 12,
+    marginTop: 16,
     alignItems: 'center',
   },
   resendText: {
-    color: '#159D7E',
+    color: '#0B5CAB',
     fontWeight: '600',
     fontSize: 14,
+    fontFamily: Fonts.primary.bold,
   },
 });
 

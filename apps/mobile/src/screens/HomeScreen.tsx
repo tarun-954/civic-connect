@@ -1,5 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { SafeAreaView, View, Text, StyleSheet, Image, TouchableOpacity, FlatList, Dimensions, TextInput, ScrollView } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
+import { ApiService } from '../services/api';
 // Try to import Lottie, fallback to null if not available
 let LottieView: any = null;
 try {
@@ -69,6 +71,7 @@ export default function HomeScreen({ navigation }: any) {
   const [timeText, setTimeText] = useState('');
   const [isSearching, setIsSearching] = useState(false);
   const [query, setQuery] = useState('');
+  const [unreadCount, setUnreadCount] = useState(0);
 
   useEffect(() => {
     const updateNow = () => {
@@ -83,6 +86,25 @@ export default function HomeScreen({ navigation }: any) {
     updateNow();
     const timer = setInterval(updateNow, 1000);
     return () => clearInterval(timer);
+  }, []);
+
+  // Fetch unread notification count
+  useEffect(() => {
+    const fetchUnreadCount = async () => {
+      try {
+        const response = await ApiService.getUnreadNotificationCount();
+        if (response.status === 'success') {
+          setUnreadCount(response.data.unreadCount || 0);
+        }
+      } catch (error) {
+        console.error('Error fetching unread count:', error);
+      }
+    };
+
+    fetchUnreadCount();
+    // Refresh count every 30 seconds
+    const interval = setInterval(fetchUnreadCount, 30000);
+    return () => clearInterval(interval);
   }, []);
 
   useEffect(() => {
@@ -112,8 +134,21 @@ export default function HomeScreen({ navigation }: any) {
           <TouchableOpacity style={styles.iconButton} activeOpacity={0.8} onPress={() => setIsSearching(true)}>
             <Feather name="search" size={22} color="#111827" />
           </TouchableOpacity>
-          <TouchableOpacity style={styles.iconButton} activeOpacity={0.8}>
-            <Feather name="bell" size={22} color="#111827" />
+          <TouchableOpacity 
+            style={styles.iconButton} 
+            activeOpacity={0.8}
+            onPress={() => navigation.navigate('Notifications')}
+          >
+            <View style={styles.bellContainer}>
+              <Feather name="bell" size={22} color="#111827" />
+              {unreadCount > 0 && (
+                <View style={styles.notificationBadge}>
+                  <Text style={styles.badgeText}>
+                    {unreadCount > 99 ? '99+' : unreadCount}
+                  </Text>
+                </View>
+              )}
+            </View>
           </TouchableOpacity>
         </View>
       </View>
@@ -306,6 +341,26 @@ const styles = StyleSheet.create({
   },
   iconButton: {
     marginLeft: 14
+  },
+  bellContainer: {
+    position: 'relative'
+  },
+  notificationBadge: {
+    position: 'absolute',
+    top: -8,
+    right: -8,
+    backgroundColor: '#EF4444',
+    borderRadius: 10,
+    minWidth: 20,
+    height: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 4
+  },
+  badgeText: {
+    color: '#FFFFFF',
+    fontSize: 10,
+    fontWeight: '600'
   },
   searchBar: {
     marginTop: 12,

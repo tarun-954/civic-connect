@@ -19,6 +19,7 @@ import { Feather } from '@expo/vector-icons';
 import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
 declare const process: any;
 import { ApiService, formatReportForSubmission, getStoredUserProfile, fetchMyProfile } from '../services/api';
+import NativeNotificationService from '../services/notificationService';
 
 const { width } = Dimensions.get('window');
 
@@ -164,6 +165,21 @@ const ReportPreviewScreen: React.FC<ReportPreviewScreenProps> = ({ navigation, r
       // Copy tracking code to clipboard (preferred for tracking)
       const trackingCode = response.data.trackingCode || response.data.reportId;
       await Clipboard.setString(trackingCode);
+      
+      // Show native notification for department users
+      try {
+        await NativeNotificationService.notifyDepartmentOfNewReport({
+          title: formattedData.issue?.title || formattedData.issue?.subcategory || 'New Report',
+          description: formattedData.issue?.description || 'A new report has been submitted',
+          category: formattedData.issue?.category || 'General',
+          department: formattedData.issue?.department || 'General Department',
+          trackingId: trackingCode,
+          reportId: response.data.reportId
+        });
+        console.log('✅ Native notification sent');
+      } catch (notificationError) {
+        console.error('Error sending notification:', notificationError);
+      }
       
       // Show success message with copy and track options
       Alert.alert(

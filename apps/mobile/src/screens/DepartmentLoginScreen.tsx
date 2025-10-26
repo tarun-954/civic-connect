@@ -18,6 +18,7 @@ export default function DepartmentLoginScreen({ navigation }: any) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showDeptModal, setShowDeptModal] = useState(false);
+  const [loginType, setLoginType] = useState("supervisor"); // "supervisor" or "worker"
 
   const departments = [
     { name: "Road Department", code: "ROAD_DEPT" },
@@ -54,7 +55,8 @@ export default function DepartmentLoginScreen({ navigation }: any) {
       await AsyncStorage.setItem('departmentInfo', JSON.stringify({
         name: selectedDept.name,
         code: selectedDept.code,
-        email
+        email,
+        loginType
       }));
 
       navigation.replace('DepartmentTabs', {
@@ -82,6 +84,27 @@ export default function DepartmentLoginScreen({ navigation }: any) {
       <Text style={styles.title}>Department Login Portal</Text>
 
       <View style={styles.card}>
+        {/* Login Type Selection */}
+        <Text style={styles.label}>Login As</Text>
+        <View style={styles.loginTypeContainer}>
+          <TouchableOpacity
+            style={[styles.loginTypeButton, loginType === 'supervisor' && styles.loginTypeButtonActive]}
+            onPress={() => setLoginType('supervisor')}
+          >
+            <Text style={[styles.loginTypeText, loginType === 'supervisor' && styles.loginTypeTextActive]}>
+              Supervisor
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.loginTypeButton, loginType === 'worker' && styles.loginTypeButtonActive]}
+            onPress={() => setLoginType('worker')}
+          >
+            <Text style={[styles.loginTypeText, loginType === 'worker' && styles.loginTypeTextActive]}>
+              Worker
+            </Text>
+          </TouchableOpacity>
+        </View>
+
         {/* Department Dropdown */}
         <Text style={styles.label}>Select Department</Text>
         <TouchableOpacity
@@ -234,5 +257,35 @@ const styles = StyleSheet.create({
   optionText: {
     fontSize: 16,
     color: "#111827",
+  },
+  loginTypeContainer: {
+    flexDirection: 'row',
+    backgroundColor: '#F3F4F6',
+    borderRadius: 10,
+    padding: 4,
+    marginBottom: 10,
+  },
+  loginTypeButton: {
+    flex: 1,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  loginTypeButtonActive: {
+    backgroundColor: '#FFFFFF',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  loginTypeText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#6B7280',
+  },
+  loginTypeTextActive: {
+    color: '#111827',
   },
 });
