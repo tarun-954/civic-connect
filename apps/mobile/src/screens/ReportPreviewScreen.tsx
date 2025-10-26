@@ -169,10 +169,10 @@ const ReportPreviewScreen: React.FC<ReportPreviewScreenProps> = ({ navigation, r
       // Show native notification for department users
       try {
         await NotificationService.notifyDepartmentOfNewReport({
-          title: formattedData.issue?.title || formattedData.issue?.subcategory || 'New Report',
+          title: formattedData.issue?.subcategory || 'New Report',
           description: formattedData.issue?.description || 'A new report has been submitted',
           category: formattedData.issue?.category || 'General',
-          department: formattedData.issue?.department || 'General Department',
+          department: 'General Department',
           trackingId: trackingCode,
           reportId: response.data.reportId
         });

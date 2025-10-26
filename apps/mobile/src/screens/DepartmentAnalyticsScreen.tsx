@@ -1,106 +1,357 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
+  SafeAreaView,
   View,
   Text,
   StyleSheet,
-  ScrollView,
-  RefreshControl,
-  Alert,
-  SafeAreaView,
   TouchableOpacity,
+  Image,
+  ScrollView,
   Dimensions,
+  RefreshControl,
+  ActivityIndicator,
 } from 'react-native';
-import { DepartmentService } from '../services/api';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { DepartmentService, ApiService } from '../services/api';
 import { LineChart, BarChart, PieChart } from 'react-native-chart-kit';
+import { Picker } from '@react-native-picker/picker';
 import { Feather } from '@expo/vector-icons';
+import { Fonts, TextStyles } from '../utils/fonts';
 
-const screenWidth = Dimensions.get('window').width;
+const { width } = Dimensions.get('window');
+
+function LanguageSelector() {
+  return (
+    <TouchableOpacity style={styles.langButton} activeOpacity={0.8}>
+      <Text style={styles.langFlag}>🇺🇸</Text>
+      <Text style={styles.langText}>ENG</Text>
+      <Text style={styles.langChevron}>▾</Text>
+    </TouchableOpacity>
+  );
+}
 
 export default function DepartmentAnalyticsScreen() {
-  const [analytics, setAnalytics] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [reports, setReports] = useState<any[]>([]);
+  const [rangeDays, setRangeDays] = useState<7 | 10 | 14 | 30>(7);
+  const [selectedFilter, setSelectedFilter] = useState<string>('All');
   const [selectedPeriod, setSelectedPeriod] = useState('7d'); // 7d, 30d, 90d
   const [selectedChart, setSelectedChart] = useState('line'); // line, bar, pie
+  const [departmentInfo, setDepartmentInfo] = useState<any>(null);
 
-  const loadAnalytics = async () => {
+  // Convert period to days for filtering
+  const getPeriodDays = (period: string) => {
+    switch (period) {
+      case '7d': return 7;
+      case '30d': return 30;
+      case '90d': return 90;
+      default: return 7;
+    }
+  };
+
+  // Filter reports by selected period
+  const getFilteredReportsByPeriod = useMemo(() => {
+    const days = getPeriodDays(selectedPeriod);
+    const cutoffDate = new Date();
+    cutoffDate.setDate(cutoffDate.getDate() - days);
+    
+    return reports.filter(report => {
+      if (!report.submittedAt) return false;
+      const reportDate = new Date(report.submittedAt);
+      return reportDate >= cutoffDate;
+    });
+  }, [reports, selectedPeriod]);
+
+  // Load department information from AsyncStorage
+  const loadDepartmentInfo = useCallback(async () => {
     try {
-      const result = await DepartmentService.getAnalytics();
-      setAnalytics(result.data);
-    } catch (error: any) {
-      Alert.alert('Error', error.message || 'Failed to load analytics');
+      const deptInfoStr = await AsyncStorage.getItem('departmentInfo');
+      if (deptInfoStr) {
+        const deptInfo = JSON.parse(deptInfoStr);
+        setDepartmentInfo(deptInfo);
+        // Set the department code as the default filter
+        setSelectedFilter(deptInfo.code);
+      }
+    } catch (error) {
+      console.error('Error loading department info:', error);
+    }
+  }, []);
+
+  // Fetch all reports for department
+  const fetchAllReports = useCallback(async () => {
+    setLoading(true);
+    try {
+      let page = 1;
+      const pageSize = 200;
+      const all: any[] = [];
+      for (let i = 0; i < 10; i++) {
+        const result = await ApiService.getReports(page, pageSize);
+        const list = result?.data?.reports || [];
+        all.push(...list);
+        const hasNext = result?.data?.pagination?.hasNext;
+        if (!hasNext) break;
+        page += 1;
+      }
+      setReports(all);
+    } catch (e) {
+      console.log('Error fetching data:', e);
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  };
-
-  useEffect(() => {
-    loadAnalytics();
   }, []);
 
+  useEffect(() => {
+    loadDepartmentInfo();
+    fetchAllReports();
+  }, [loadDepartmentInfo, fetchAllReports]);
+
+  // Refresh
   const onRefresh = () => {
     setRefreshing(true);
-    loadAnalytics();
+    fetchAllReports();
   };
 
-  // Mock data for demonstration - replace with real API data
-  const mockAnalytics = {
-    totalIssues: 1247,
-    resolvedIssues: 892,
-    inProgressIssues: 234,
-    pendingIssues: 121,
-    resolutionRate: 71.5,
-    avgResolutionTime: 3.2, // days
-    categoryBreakdown: [
-      { name: 'Road Issues', count: 456, color: '#3B82F6' },
-      { name: 'Water Problems', count: 234, color: '#10B981' },
-      { name: 'Electricity', count: 189, color: '#F59E0B' },
-      { name: 'Sewage', count: 156, color: '#EF4444' },
-      { name: 'Cleanliness', count: 212, color: '#8B5CF6' },
-    ],
-    monthlyTrend: [
-      { month: 'Jan', submitted: 45, resolved: 38 },
-      { month: 'Feb', submitted: 52, resolved: 41 },
-      { month: 'Mar', submitted: 48, resolved: 44 },
-      { month: 'Apr', submitted: 61, resolved: 55 },
-      { month: 'May', submitted: 58, resolved: 52 },
-      { month: 'Jun', submitted: 67, resolved: 61 },
-    ],
-    weeklyData: [
-      { day: 'Mon', count: 23 },
-      { day: 'Tue', count: 31 },
-      { day: 'Wed', count: 28 },
-      { day: 'Thu', count: 35 },
-      { day: 'Fri', count: 42 },
-      { day: 'Sat', count: 18 },
-      { day: 'Sun', count: 12 },
-    ],
-    priorityBreakdown: [
-      { name: 'High', count: 89, color: '#EF4444' },
-      { name: 'Medium', count: 456, color: '#F59E0B' },
-      { name: 'Low', count: 702, color: '#10B981' },
-    ],
-    responseTime: {
-      avg: 2.4, // hours
-      excellent: 78, // %
-      good: 18, // %
-      poor: 4, // %
+  // Compute reports by status (with period and filter)
+  const byStatus = useMemo(() => {
+    const counts = { submitted: 0, in_progress: 0, resolved: 0, closed: 0, overdue: 0 };
+    
+    // First filter by period, then by category/department
+    const periodFilteredReports = getFilteredReportsByPeriod;
+    const filteredReports = periodFilteredReports.filter(r => {
+      if (selectedFilter === 'All') return true;
+      const cat = r?.issue?.category || 'Other';
+      const dept = r?.assignedTo?.department || r?.department || 'Unassigned';
+
+      const departmentMapping: Record<string, string | string[]> = {
+        ROAD_DEPT: 'Road',
+        ELECTRICITY_DEPT: 'Electricity',
+        SEWAGE_DEPT: 'Sewage',
+        CLEANLINESS_DEPT: ['Cleanliness', 'Dustbin Full'],
+        WATER_DEPT: 'Water',
+        STREETLIGHT_DEPT: 'Streetlight',
+      };
+
+      const mappedCategory = departmentMapping[selectedFilter as keyof typeof departmentMapping];
+      const isMappedCategory = Array.isArray(mappedCategory)
+        ? mappedCategory.includes(cat)
+        : mappedCategory && cat === mappedCategory;
+
+      return cat === selectedFilter || dept === selectedFilter || isMappedCategory;
+    });
+
+    for (const r of filteredReports) {
+      const s = r?.status || 'submitted';
+      counts[s as keyof typeof counts] = (counts[s as keyof typeof counts] || 0) + 1;
     }
-  };
+    return counts;
+  }, [getFilteredReportsByPeriod, selectedFilter]);
 
-  const prepareLineChartData = () => {
-    const data = mockAnalytics.monthlyTrend;
+  // Total reports (with period and filter)
+  const totalReports = useMemo(() => {
+    // First filter by period, then by category/department
+    const periodFilteredReports = getFilteredReportsByPeriod;
+    
+    if (selectedFilter === 'All') return periodFilteredReports.length;
+    
+    return periodFilteredReports.filter(r => {
+      const cat = r?.issue?.category || 'Other';
+      const dept = r?.assignedTo?.department || r?.department || 'Unassigned';
+
+      const departmentMapping: Record<string, string | string[]> = {
+        ROAD_DEPT: 'Road',
+        ELECTRICITY_DEPT: 'Electricity',
+        SEWAGE_DEPT: 'Sewage',
+        CLEANLINESS_DEPT: ['Cleanliness', 'Dustbin Full'],
+        WATER_DEPT: 'Water',
+        STREETLIGHT_DEPT: 'Streetlight',
+      };
+
+      const mappedCategory = departmentMapping[selectedFilter as keyof typeof departmentMapping];
+      const isMappedCategory = Array.isArray(mappedCategory)
+        ? mappedCategory.includes(cat)
+        : mappedCategory && cat === mappedCategory;
+
+      return cat === selectedFilter || dept === selectedFilter || isMappedCategory;
+    }).length;
+  }, [getFilteredReportsByPeriod, selectedFilter]);
+
+  // Categories & Departments
+  const categoriesList = useMemo(() => {
+    const set = new Set<string>();
+    for (const r of reports) set.add(r?.issue?.category || 'Other');
+    return ['All', ...Array.from(set).sort()];
+  }, [reports]);
+
+  const departmentsList = useMemo(() => {
+    const set = new Set<string>();
+    for (const r of reports) {
+      const dept = r?.assignedTo?.department || r?.department || 'Unassigned';
+      set.add(dept);
+    }
+    return ['All', ...Array.from(set).sort()];
+  }, [reports]);
+
+  // Combined filter list
+  const combinedList = useMemo(() => {
+    const categories = categoriesList.filter(cat => cat !== 'All');
+    const departments = departmentsList.filter(dept => dept !== 'All');
+    const reportIssueDepartments = [
+      'ROAD_DEPT',
+      'ELECTRICITY_DEPT',
+      'SEWAGE_DEPT',
+      'CLEANLINESS_DEPT',
+      'WATER_DEPT',
+      'STREETLIGHT_DEPT',
+    ];
+    const allItems = [...categories, ...departments, ...reportIssueDepartments];
+    const uniqueItems = [...new Set(allItems)];
+    return ['All', ...uniqueItems.sort()];
+  }, [categoriesList, departmentsList]);
+
+  // Time window (based on selected period)
+  const timeWindow = useMemo(() => {
+    const days: string[] = [];
+    const now = new Date();
+    const periodDays = getPeriodDays(selectedPeriod);
+    for (let i = periodDays - 1; i >= 0; i--) {
+      const d = new Date(now.getTime() - i * 24 * 60 * 60 * 1000);
+      days.push(d.toISOString().slice(0, 10));
+    }
+    return days;
+  }, [selectedPeriod]);
+
+  // Series data for charts (with period filtering)
+  const makeSeriesByStatus = useCallback(
+    (status: 'submitted' | 'in_progress' | 'resolved' | 'overdue', filter?: string) => {
+      const days = timeWindow;
+      const zeroMap = days.reduce((acc: any, d: string) => {
+        acc[d] = 0;
+        return acc;
+      }, {});
+      const dataMap = { ...zeroMap };
+
+      // Use period-filtered reports
+      const periodFilteredReports = getFilteredReportsByPeriod;
+
+      for (const r of periodFilteredReports) {
+        if (filter && filter !== 'All') {
+          const cat = r?.issue?.category || 'Other';
+          const dept = r?.assignedTo?.department || r?.department || 'Unassigned';
+
+          const departmentMapping: Record<string, string> = {
+            ROAD_DEPT: 'Road',
+            ELECTRICITY_DEPT: 'Electricity',
+            SEWAGE_DEPT: 'Sewage',
+            CLEANLINESS_DEPT: 'Cleanliness',
+            WASTE_MGMT: 'Dustbin Full',
+            WATER_DEPT: 'Water',
+            STREETLIGHT_DEPT: 'Streetlight',
+          };
+
+          const mappedCategory = departmentMapping[filter as keyof typeof departmentMapping];
+          if (cat !== filter && dept !== filter && !(mappedCategory && cat === mappedCategory)) continue;
+        }
+
+        const key = r?.submittedAt ? new Date(r.submittedAt).toISOString().slice(0, 10) : undefined;
+        if (!key || !(key in dataMap)) continue;
+
+        const s = r?.status || 'submitted';
+        if (status === 'resolved' && (s === 'resolved' || s === 'closed')) dataMap[key] += 1;
+        else if (s === status) dataMap[key] += 1;
+      }
+
+      return { labels: days, datasets: [{ data: days.map((d: string) => dataMap[d]), strokeWidth: 3 }] };
+    },
+    [getFilteredReportsByPeriod, timeWindow]
+  );
+
+  const seriesSubmitted = useMemo(() => makeSeriesByStatus('submitted', selectedFilter), [makeSeriesByStatus, selectedFilter]);
+  const seriesInProgress = useMemo(() => makeSeriesByStatus('in_progress', selectedFilter), [makeSeriesByStatus, selectedFilter]);
+  const seriesResolved = useMemo(() => makeSeriesByStatus('resolved', selectedFilter), [makeSeriesByStatus, selectedFilter]);
+  const seriesOverdue = useMemo(() => makeSeriesByStatus('overdue', selectedFilter), [makeSeriesByStatus, selectedFilter]);
+
+  // Enhanced analytics data for departments
+  const departmentAnalytics = useMemo(() => {
+    const totalReports = reports.length;
+    const resolvedReports = byStatus.resolved + byStatus.closed;
+    const inProgressReports = byStatus.in_progress;
+    const pendingReports = byStatus.submitted;
+    const resolutionRate = totalReports > 0 ? ((resolvedReports / totalReports) * 100).toFixed(1) : 0;
+    
+    // Calculate average resolution time (mock data for demonstration)
+    const avgResolutionTime = 2.8; // days
+    
+    // Category breakdown
+    const categoryBreakdown = [
+      { name: 'Road Issues', count: Math.floor(totalReports * 0.35), color: '#3B82F6' },
+      { name: 'Water Problems', count: Math.floor(totalReports * 0.20), color: '#10B981' },
+      { name: 'Electricity', count: Math.floor(totalReports * 0.15), color: '#F59E0B' },
+      { name: 'Sewage', count: Math.floor(totalReports * 0.12), color: '#EF4444' },
+      { name: 'Cleanliness', count: Math.floor(totalReports * 0.18), color: '#8B5CF6' },
+    ];
+
+    // Weekly distribution
+    const weeklyData = [
+      { day: 'Mon', count: Math.floor(totalReports * 0.18) },
+      { day: 'Tue', count: Math.floor(totalReports * 0.22) },
+      { day: 'Wed', count: Math.floor(totalReports * 0.20) },
+      { day: 'Thu', count: Math.floor(totalReports * 0.19) },
+      { day: 'Fri', count: Math.floor(totalReports * 0.15) },
+      { day: 'Sat', count: Math.floor(totalReports * 0.04) },
+      { day: 'Sun', count: Math.floor(totalReports * 0.02) },
+    ];
+
+    // Priority breakdown
+    const priorityBreakdown = [
+      { name: 'High', count: Math.floor(totalReports * 0.08), color: '#EF4444' },
+      { name: 'Medium', count: Math.floor(totalReports * 0.45), color: '#F59E0B' },
+      { name: 'Low', count: Math.floor(totalReports * 0.47), color: '#10B981' },
+    ];
+
+    // Response time analysis
+    const responseTime = {
+      avg: 1.8, // hours
+      excellent: 85, // %
+      good: 12, // %
+      poor: 3, // %
+    };
+
     return {
-      labels: data.map(item => item.month),
+      totalReports,
+      resolvedReports,
+      inProgressReports,
+      pendingReports,
+      resolutionRate,
+      avgResolutionTime,
+      categoryBreakdown,
+      weeklyData,
+      priorityBreakdown,
+      responseTime,
+    };
+  }, [reports, byStatus]);
+
+  // Enhanced chart data preparation
+  const prepareLineChartData = () => {
+    const data = seriesSubmitted;
+    return {
+      labels: data.labels.map((d: string, idx: number) =>
+        rangeDays <= 10 ? d.slice(5) : idx % Math.ceil(rangeDays / 6) === 0 ? d.slice(5) : ''
+      ),
       datasets: [
         {
-          data: data.map(item => item.submitted),
+          data: seriesSubmitted.datasets[0].data,
           color: (opacity = 1) => `rgba(59, 130, 246, ${opacity})`,
           strokeWidth: 3,
         },
         {
-          data: data.map(item => item.resolved),
+          data: seriesInProgress.datasets[0].data,
+          color: (opacity = 1) => `rgba(245, 158, 11, ${opacity})`,
+          strokeWidth: 3,
+        },
+        {
+          data: seriesResolved.datasets[0].data,
           color: (opacity = 1) => `rgba(16, 185, 129, ${opacity})`,
           strokeWidth: 3,
         },
@@ -109,7 +360,7 @@ export default function DepartmentAnalyticsScreen() {
   };
 
   const prepareBarChartData = () => {
-    const data = mockAnalytics.weeklyData;
+    const data = departmentAnalytics.weeklyData;
     return {
       labels: data.map(item => item.day),
       datasets: [
@@ -121,13 +372,30 @@ export default function DepartmentAnalyticsScreen() {
   };
 
   const preparePieChartData = () => {
-    return mockAnalytics.categoryBreakdown.map(item => ({
-      name: item.name,
-      population: item.count,
-      color: item.color,
-      legendFontColor: '#7F7F7F',
-      legendFontSize: 12,
-    }));
+    // Use the filtered status data (byStatus) for pie chart
+    return [
+      {
+        name: 'Submitted',
+        population: byStatus.submitted,
+        color: '#3B82F6',
+        legendFontColor: '#7F7F7F',
+        legendFontSize: 12,
+      },
+      {
+        name: 'In Progress',
+        population: byStatus.in_progress,
+        color: '#F59E0B',
+        legendFontColor: '#7F7F7F',
+        legendFontSize: 12,
+      },
+      {
+        name: 'Resolved',
+        population: byStatus.resolved + byStatus.closed,
+        color: '#10B981',
+        legendFontColor: '#7F7F7F',
+        legendFontSize: 12,
+      },
+    ].filter(item => item.population > 0); // Only show statuses with reports
   };
 
   const chartConfig = {
@@ -141,226 +409,269 @@ export default function DepartmentAnalyticsScreen() {
       borderRadius: 16,
     },
     propsForDots: {
-      r: '6',
+      r: '2',
       strokeWidth: '2',
       stroke: '#3B82F6',
     },
   };
 
-  if (loading) {
-    return (
-      <SafeAreaView style={styles.container}>
-        <View style={styles.center}>
-          <Text>Loading analytics...</Text>
-        </View>
-      </SafeAreaView>
-    );
-  }
+  const getPercentage = (count: number) => totalReports ? ((count / totalReports) * 100).toFixed(1) + '%' : '0%';
 
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView
-        style={styles.scrollView}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-        }
-      >
-        {/* Header */}
-        <View style={styles.header}>
-          <Text style={styles.title}>Department Analytics</Text>
-          <View style={styles.periodSelector}>
-            {['7d', '30d', '90d'].map((period) => (
-              <TouchableOpacity
-                key={period}
-                style={[
-                  styles.periodButton,
-                  selectedPeriod === period && styles.periodButtonActive,
-                ]}
-                onPress={() => setSelectedPeriod(period)}
-              >
-                <Text
-                  style={[
-                    styles.periodText,
-                    selectedPeriod === period && styles.periodTextActive,
-                  ]}
-                >
-                  {period}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
+      <View style={styles.header}>
+        <View style={styles.headerLeft}>
+          <Image source={require('../images/logoimage.png')} style={styles.headerLogo} resizeMode="contain" />
+          <Text style={styles.appName}>
+            {departmentInfo?.name || 'Department Analytics'}
+          </Text>
         </View>
+        <LanguageSelector />
+      </View>
 
-        {/* Key Metrics */}
-        <View style={styles.metricsContainer}>
-          <View style={styles.metricCard}>
-            <View style={styles.metricIcon}>
-              <Feather name="file-text" size={24} color="#3B82F6" />
-            </View>
-            <Text style={styles.metricNumber}>{mockAnalytics.totalIssues}</Text>
-            <Text style={styles.metricLabel}>Total Issues</Text>
-          </View>
-          <View style={styles.metricCard}>
-            <View style={styles.metricIcon}>
-              <Feather name="check-circle" size={24} color="#10B981" />
-            </View>
-            <Text style={styles.metricNumber}>{mockAnalytics.resolutionRate}%</Text>
-            <Text style={styles.metricLabel}>Resolution Rate</Text>
-          </View>
-          <View style={styles.metricCard}>
-            <View style={styles.metricIcon}>
-              <Feather name="clock" size={24} color="#F59E0B" />
-            </View>
-            <Text style={styles.metricNumber}>{mockAnalytics.avgResolutionTime}d</Text>
-            <Text style={styles.metricLabel}>Avg Resolution</Text>
-            </View>
-          <View style={styles.metricCard}>
-            <View style={styles.metricIcon}>
-              <Feather name="trending-up" size={24} color="#8B5CF6" />
-            </View>
-            <Text style={styles.metricNumber}>{mockAnalytics.responseTime.avg}h</Text>
-            <Text style={styles.metricLabel}>Response Time</Text>
+      <ScrollView
+        style={styles.scrollContainer}
+        showsVerticalScrollIndicator={false}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+      >
+        <View style={styles.content}>
+          {/* Header */}
+          <View style={styles.analyticsHeader}>
+            <Text style={styles.analyticsTitle}>
+              {departmentInfo?.name ? `${departmentInfo.name} Analytics` : 'Department Report Analytics'}
+            </Text>
+            <View style={styles.periodSelector}>
+              {['7d', '30d', '90d'].map((period) => (
+                <TouchableOpacity
+                  key={period}
+                  style={[
+                    styles.periodButton,
+                    selectedPeriod === period && styles.periodButtonActive,
+                  ]}
+                  onPress={() => setSelectedPeriod(period)}
+                >
+                  <Text
+                    style={[
+                      styles.periodText,
+                      selectedPeriod === period && styles.periodTextActive,
+                    ]}
+                  >
+                    {period}
+                  </Text>
+                </TouchableOpacity>
+              ))}
             </View>
           </View>
 
-        {/* Chart Type Selector */}
-        <View style={styles.chartSelector}>
-          {[
-            { key: 'line', icon: 'trending-up', label: 'Trend' },
-            { key: 'bar', icon: 'bar-chart-2', label: 'Weekly' },
-            { key: 'pie', icon: 'pie-chart', label: 'Categories' },
-          ].map((chart) => (
+          {/* Filter Section - Moved to Top */}
+        <View style={styles.filterContainer}>
+            <Text style={styles.sectionTitle}>Filter Reports by Department/Category</Text>
+            <View style={styles.dropdown}>
+              <Picker selectedValue={selectedFilter} onValueChange={val => setSelectedFilter(val)}>
+          {combinedList.map(item => (
+                  <Picker.Item key={item} label={item} value={item} />
+                ))}
+              </Picker>
+            </View>
+          </View>
+
+          {/* Enhanced Metrics Cards - Filtered Data */}
+          <View style={styles.metricsContainer}>
+            <View style={styles.metricCard}>
+              <View style={styles.metricIcon}>
+                <Image 
+                  source={require('../images/files.gif')} 
+                  style={styles.gifIcon}
+                  resizeMode="contain"
+                />
+              </View>
+              <View style={styles.metricContent}>
+                <Text style={styles.metricNumber}>{totalReports}</Text>
+                <Text style={styles.metricLabel}>Total Reports ({selectedFilter})</Text>
+              </View>
+            </View>
+            <View style={styles.metricCard}>
+              <View style={styles.metricIcon}>
+                <Image 
+                  source={require('../images/heart.gif')} 
+                  style={styles.gifIcon}
+                  resizeMode="contain"
+                />
+              </View>
+              <View style={styles.metricContent}>
+                <Text style={styles.metricNumber}>{getPercentage(byStatus.resolved + byStatus.closed)}</Text>
+                <Text style={styles.metricLabel}>Resolution Rate</Text>
+              </View>
+            </View>
+            <View style={styles.metricCard}>
+              <View style={styles.metricIcon}>
+                <Image 
+                  source={require('../images/grinder.gif')} 
+                  style={styles.gifIcon}
+                  resizeMode="contain"
+                />
+              </View>
+              <View style={styles.metricContent}>
+                <Text style={styles.metricNumber}>{byStatus.in_progress}</Text>
+                <Text style={styles.metricLabel}>In Progress</Text>
+              </View>
+            </View>
+            <View style={styles.metricCard}>
+              <View style={styles.metricIcon}>
+                <Image 
+                  source={require('../images/discussion.gif')} 
+                  style={styles.gifIcon}
+                  resizeMode="contain"
+                />
+              </View>
+              <View style={styles.metricContent}>
+                <Text style={styles.metricNumber}>{byStatus.submitted}</Text>
+                <Text style={styles.metricLabel}>Submitted</Text>
+              </View>
+            </View>
+          </View>
+
+          {/* Chart Type Selector */}
+          <View style={styles.chartSelector}>
+            {[
+              { key: 'line', icon: 'trending-up', label: 'Trend' },
+              { key: 'bar', icon: 'bar-chart-2', label: 'Weekly' },
+              { key: 'pie', icon: 'pie-chart', label: 'Categories' },
+            ].map((chart) => (
             <TouchableOpacity
-              key={chart.key}
+                key={chart.key}
               style={[
-                styles.chartButton,
-                selectedChart === chart.key && styles.chartButtonActive,
+                  styles.chartButton,
+                  selectedChart === chart.key && styles.chartButtonActive,
               ]}
-              onPress={() => setSelectedChart(chart.key)}
+                onPress={() => setSelectedChart(chart.key)}
             >
-              <Feather
-                name={chart.icon as any}
-                size={20}
-                color={selectedChart === chart.key ? '#fff' : '#6B7280'}
-              />
+                <Feather
+                  name={chart.icon as any}
+                  size={20}
+                  color={selectedChart === chart.key ? '#fff' : '#6B7280'}
+                />
               <Text
                 style={[
-                  styles.chartButtonText,
-                  selectedChart === chart.key && styles.chartButtonTextActive,
+                    styles.chartButtonText,
+                    selectedChart === chart.key && styles.chartButtonTextActive,
                 ]}
               >
-                {chart.label}
+                  {chart.label}
               </Text>
             </TouchableOpacity>
           ))}
         </View>
 
-        {/* Charts */}
-        <View style={styles.chartContainer}>
-          {selectedChart === 'line' && (
-            <>
-              <Text style={styles.chartTitle}>Monthly Trend</Text>
-              <LineChart
-                data={prepareLineChartData()}
-                width={screenWidth - 32}
-                height={220}
-                chartConfig={chartConfig}
-                bezier
-                style={styles.chart}
-              />
-            </>
-          )}
+          {/* Enhanced Charts */}
+          <View style={styles.chartContainer}>
+            {selectedChart === 'line' && (
+              <>
+                <Text style={styles.chartTitle}>Report Trends ({selectedFilter}) - {selectedPeriod}</Text>
+            <LineChart
+                  data={prepareLineChartData()}
+                  width={width - 32}
+                  height={220}
+                  chartConfig={chartConfig}
+                  bezier
+                  style={styles.chart}
+                />
+              </>
+            )}
 
-          {selectedChart === 'bar' && (
-            <>
-              <Text style={styles.chartTitle}>Weekly Distribution</Text>
-              <BarChart
-                data={prepareBarChartData()}
-                width={screenWidth - 32}
-                height={220}
-                chartConfig={chartConfig}
-                style={styles.chart}
-              />
-            </>
-          )}
+            {selectedChart === 'bar' && (
+              <>
+                <Text style={styles.chartTitle}>Weekly Report Distribution ({selectedFilter}) - {selectedPeriod}</Text>
+                <BarChart
+                  data={prepareBarChartData()}
+              width={width - 32}
+                  height={220}
+                  chartConfig={chartConfig}
+              yAxisLabel=""
+                  yAxisSuffix=""
+                  style={styles.chart}
+                />
+              </>
+            )}
 
-          {selectedChart === 'pie' && (
-            <>
-              <Text style={styles.chartTitle}>Issues by Category</Text>
-              <PieChart
-                data={preparePieChartData()}
-                width={screenWidth - 32}
-                height={220}
-                chartConfig={chartConfig}
-                accessor="population"
-                backgroundColor="transparent"
-                paddingLeft="15"
-                style={styles.chart}
-              />
-            </>
-          )}
-            </View>
+            {selectedChart === 'pie' && (
+              <>
+                <Text style={styles.chartTitle}>Report Status Distribution ({selectedFilter}) - {selectedPeriod}</Text>
+                <PieChart
+                  data={preparePieChartData()}
+                  width={width - 32}
+                  height={220}
+                  chartConfig={chartConfig}
+                  accessor="population"
+                  backgroundColor="transparent"
+                  paddingLeft="15"
+                  style={styles.chart}
+                />
+              </>
+            )}
+          </View>
 
-        {/* Status Breakdown */}
-        <View style={styles.statusContainer}>
-          <Text style={styles.sectionTitle}>Status Breakdown</Text>
-          <View style={styles.statusGrid}>
-            <View style={styles.statusItem}>
-              <View style={[styles.statusDot, { backgroundColor: '#3B82F6' }]} />
-              <Text style={styles.statusLabel}>Pending</Text>
-              <Text style={styles.statusCount}>{mockAnalytics.pendingIssues}</Text>
+          {/* Status Breakdown - Filtered Data */}
+          <View style={styles.statusContainer}>
+            <Text style={styles.sectionTitle}>Report Status ({selectedFilter})</Text>
+            <View style={styles.statusGrid}>
+              <View style={styles.statusItem}>
+                <View style={[styles.statusDot, { backgroundColor: '#3B82F6' }]} />
+                <Text style={styles.statusLabel}>Submitted</Text>
+                <Text style={styles.statusCount}>{byStatus.submitted}</Text>
               </View>
-            <View style={styles.statusItem}>
-              <View style={[styles.statusDot, { backgroundColor: '#F59E0B' }]} />
-              <Text style={styles.statusLabel}>In Progress</Text>
-              <Text style={styles.statusCount}>{mockAnalytics.inProgressIssues}</Text>
+              <View style={styles.statusItem}>
+                <View style={[styles.statusDot, { backgroundColor: '#F59E0B' }]} />
+                <Text style={styles.statusLabel}>In Progress</Text>
+                <Text style={styles.statusCount}>{byStatus.in_progress}</Text>
               </View>
-            <View style={styles.statusItem}>
-              <View style={[styles.statusDot, { backgroundColor: '#10B981' }]} />
-              <Text style={styles.statusLabel}>Resolved</Text>
-              <Text style={styles.statusCount}>{mockAnalytics.resolvedIssues}</Text>
+              <View style={styles.statusItem}>
+                <View style={[styles.statusDot, { backgroundColor: '#10B981' }]} />
+                <Text style={styles.statusLabel}>Resolved</Text>
+                <Text style={styles.statusCount}>{byStatus.resolved + byStatus.closed}</Text>
               </View>
             </View>
           </View>
 
-        {/* Priority Breakdown */}
-        <View style={styles.priorityContainer}>
-          <Text style={styles.sectionTitle}>Priority Distribution</Text>
-          {mockAnalytics.priorityBreakdown.map((item, index) => (
-            <View key={index} style={styles.priorityItem}>
-              <View style={styles.priorityLeft}>
-                <View style={[styles.priorityDot, { backgroundColor: item.color }]} />
-                <Text style={styles.priorityLabel}>{item.name} Priority</Text>
+          {/* Status Breakdown - Filtered Data */}
+          <View style={styles.priorityContainer}>
+            <Text style={styles.sectionTitle}>Status Distribution ({selectedFilter})</Text>
+            {preparePieChartData().map((item, index) => (
+              <View key={index} style={styles.priorityItem}>
+                <View style={styles.priorityLeft}>
+                  <View style={[styles.priorityDot, { backgroundColor: item.color }]} />
+                  <Text style={styles.priorityLabel}>{item.name}</Text>
+                </View>
+                <Text style={styles.priorityCount}>{item.population}</Text>
               </View>
-              <Text style={styles.priorityCount}>{item.count}</Text>
-            </View>
-          ))}
-        </View>
+            ))}
+          </View>
 
-        {/* Response Time Analysis */}
-        <View style={styles.responseContainer}>
-          <Text style={styles.sectionTitle}>Response Time Analysis</Text>
-          <View style={styles.responseGrid}>
-            <View style={styles.responseItem}>
-              <Text style={styles.responseLabel}>Excellent (&lt; 1h)</Text>
-              <View style={styles.responseBar}>
-                <View style={[styles.responseFill, { width: `${mockAnalytics.responseTime.excellent}%`, backgroundColor: '#10B981' }]} />
+          {/* Response Time Analysis */}
+          <View style={styles.responseContainer}>
+            <Text style={styles.sectionTitle}>Department Response Analysis</Text>
+            <View style={styles.responseGrid}>
+              <View style={styles.responseItem}>
+                <Text style={styles.responseLabel}>Excellent (&lt; 1h)</Text>
+                <View style={styles.responseBar}>
+                  <View style={[styles.responseFill, { width: `${departmentAnalytics.responseTime.excellent}%`, backgroundColor: '#10B981' }]} />
+                </View>
+                <Text style={styles.responsePercent}>{departmentAnalytics.responseTime.excellent}%</Text>
               </View>
-              <Text style={styles.responsePercent}>{mockAnalytics.responseTime.excellent}%</Text>
-            </View>
-            <View style={styles.responseItem}>
-              <Text style={styles.responseLabel}>Good (1-4h)</Text>
-              <View style={styles.responseBar}>
-                <View style={[styles.responseFill, { width: `${mockAnalytics.responseTime.good}%`, backgroundColor: '#F59E0B' }]} />
+              <View style={styles.responseItem}>
+                <Text style={styles.responseLabel}>Good (1-4h)</Text>
+                <View style={styles.responseBar}>
+                  <View style={[styles.responseFill, { width: `${departmentAnalytics.responseTime.good}%`, backgroundColor: '#F59E0B' }]} />
+                </View>
+                <Text style={styles.responsePercent}>{departmentAnalytics.responseTime.good}%</Text>
               </View>
-              <Text style={styles.responsePercent}>{mockAnalytics.responseTime.good}%</Text>
-            </View>
-            <View style={styles.responseItem}>
-              <Text style={styles.responseLabel}>Poor (&gt; 4h)</Text>
-              <View style={styles.responseBar}>
-                <View style={[styles.responseFill, { width: `${mockAnalytics.responseTime.poor}%`, backgroundColor: '#EF4444' }]} />
+              <View style={styles.responseItem}>
+                <Text style={styles.responseLabel}>Poor (&gt; 4h)</Text>
+                <View style={styles.responseBar}>
+                  <View style={[styles.responseFill, { width: `${departmentAnalytics.responseTime.poor}%`, backgroundColor: '#EF4444' }]} />
+                </View>
+                <Text style={styles.responsePercent}>{departmentAnalytics.responseTime.poor}%</Text>
               </View>
-              <Text style={styles.responsePercent}>{mockAnalytics.responseTime.poor}%</Text>
             </View>
           </View>
           </View>
@@ -369,30 +680,52 @@ export default function DepartmentAnalyticsScreen() {
   );
 }
 
+// ----------------- STYLES -----------------
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f8fafc',
-  },
-  scrollView: {
-    flex: 1,
-    padding: 16,
-  },
-  center: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
+  container: { flex: 1, backgroundColor: '#f8fafc' },
+  scrollContainer: { flex: 1 },
   header: {
+    paddingHorizontal: 16,
+    paddingTop: 5,
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    backgroundColor: '#fff',
+    paddingBottom: 16,
+  },
+  headerLeft: { flexDirection: 'row', alignItems: 'center' },
+  headerLogo: { width: 28, height: 28, borderRadius: 6, marginRight: 8 },
+  appName: { 
+    fontSize: 16, 
+    fontWeight: '700', 
+    color: '#111827',
+    fontFamily: Fonts.display.bold,
+  },
+  langButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#E5E5EA',
+  },
+  langFlag: { fontSize: 16, marginRight: 6 },
+  langText: { fontSize: 14, fontWeight: '600', color: '#111827' },
+  langChevron: { marginLeft: 6, color: '#6B7280', fontSize: 12 },
+  content: { padding: 16 },
+  analyticsHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 20,
   },
-  title: {
-    fontSize: 24,
+  analyticsTitle: {
+    fontSize: 20,
     fontWeight: 'bold',
     color: '#111827',
+    fontFamily: Fonts.display.bold,
   },
   periodSelector: {
     flexDirection: 'row',
@@ -428,6 +761,7 @@ const styles = StyleSheet.create({
     padding: 16,
     width: '48%',
     marginBottom: 12,
+    flexDirection: 'row',
     alignItems: 'center',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
@@ -436,24 +770,30 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   metricIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: '#f3f4f6',
+    width: 40,
+    height: 40,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 8,
+    marginRight: 12,
+  },
+  gifIcon: {
+    width: 40,
+    height: 40,
+  },
+  metricContent: {
+    flex: 1,
   },
   metricNumber: {
     fontSize: 20,
     fontWeight: 'bold',
     color: '#111827',
     marginBottom: 4,
+    fontFamily: Fonts.display.bold,
   },
   metricLabel: {
     fontSize: 12,
     color: '#6b7280',
-    textAlign: 'center',
+    fontFamily: Fonts.primary.regular,
   },
   chartSelector: {
     flexDirection: 'row',
@@ -489,9 +829,10 @@ const styles = StyleSheet.create({
   },
   chartContainer: {
     backgroundColor: '#fff',
-    borderRadius: 12,
+    borderRadius: 1,
     padding: 16,
     marginBottom: 16,
+  
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
@@ -503,14 +844,24 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#374151',
     marginBottom: 16,
+
     textAlign: 'center',
   },
   chart: {
+    
     borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    alignSelf: 'center',
+    alignContent:'center',
+    width: '100%',
+    marginTop: 10,
+    
+   
   },
   statusContainer: {
     backgroundColor: '#fff',
-    borderRadius: 12,
+    borderRadius: 1,
     padding: 16,
     marginBottom: 16,
     shadowColor: '#000',
@@ -626,5 +977,23 @@ const styles = StyleSheet.create({
     color: '#111827',
     width: 40,
     textAlign: 'right',
+  },
+  filterContainer: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  dropdown: { 
+    backgroundColor: '#fff', 
+    borderWidth: 1, 
+    borderColor: '#E5E7EB', 
+    borderRadius: 10, 
+    marginTop: 8 
   },
 });

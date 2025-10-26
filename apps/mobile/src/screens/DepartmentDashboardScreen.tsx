@@ -328,7 +328,7 @@ export default function DepartmentDashboardScreen({ navigation }: any) {
               </TouchableOpacity>
               <TouchableOpacity style={styles.serviceItem} onPress={() => navigation.navigate('Analytics')} activeOpacity={0.9}>
                 <View style={[styles.serviceIcon, { backgroundColor: '#FFFFFF' }]}>
-                  <Image source={require('../images/icons8-analysis.gif')} style={{ width: 28, height: 28 }} />
+                  <Image source={require('../images/icons8-rhombus-loader.gif')} style={{ width: 28, height: 28 }} />
                 </View>
                 <Text style={styles.serviceLabel}>Analytics</Text>
               </TouchableOpacity>

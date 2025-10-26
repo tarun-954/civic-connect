@@ -1,269 +1,349 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
   StyleSheet,
-  FlatList,
-  RefreshControl,
-  Alert,
-  SafeAreaView,
+  ActivityIndicator,
+  Dimensions,
   TouchableOpacity,
+  FlatList,
+  TextInput,
   Linking,
+  SafeAreaView,
 } from 'react-native';
-import { DepartmentService } from '../services/api';
+import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
+import { Feather } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { DepartmentService, ApiService } from '../services/api';
+
+const { width, height } = Dimensions.get('window');
 
 export default function DepartmentMapScreen() {
+  const mapRef = useRef<MapView>(null);
   const [issues, setIssues] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
+  const [selectedIssue, setSelectedIssue] = useState<any>(null);
+  const [searchText, setSearchText] = useState('');
+  const [filteredIssues, setFilteredIssues] = useState<any[]>([]);
+  const [departmentInfo, setDepartmentInfo] = useState<any>(null);
 
+  // Load department information
+  const loadDepartmentInfo = async () => {
+    try {
+      const deptInfoStr = await AsyncStorage.getItem('departmentInfo');
+      if (deptInfoStr) {
+        const deptInfo = JSON.parse(deptInfoStr);
+        setDepartmentInfo(deptInfo);
+      }
+    } catch (error) {
+      console.error('Error loading department info:', error);
+    }
+  };
+
+  // Load department issues
   const loadIssues = async () => {
     try {
+      setLoading(true);
       const result = await DepartmentService.getIssues();
-      setIssues(result.data.reports || []);
+      const data = result?.data?.reports || result?.reports || result?.data || [];
+      
+      // Filter issues with valid coordinates
+      const filtered = data.filter((r: any) => {
+        const lat = Number(r?.location?.latitude);
+        const lng = Number(r?.location?.longitude);
+        return isFinite(lat) && isFinite(lng) && lat !== 0 && lng !== 0;
+      });
+      
+      setIssues(filtered);
+      setFilteredIssues(filtered);
     } catch (error: any) {
-      Alert.alert('Error', error.message || 'Failed to load issues');
+      console.error('Error fetching issues:', error);
     } finally {
       setLoading(false);
-      setRefreshing(false);
     }
   };
 
   useEffect(() => {
+    loadDepartmentInfo();
     loadIssues();
   }, []);
 
-  const onRefresh = () => {
-    setRefreshing(true);
-    loadIssues();
+  // Filter issues by search text
+  useEffect(() => {
+    if (!searchText) {
+      setFilteredIssues(issues);
+    } else {
+      const filtered = issues.filter(r =>
+        r.issue?.category?.toLowerCase().includes(searchText.toLowerCase()) ||
+        r.issue?.subcategory?.toLowerCase().includes(searchText.toLowerCase()) ||
+        r.status?.toLowerCase().includes(searchText.toLowerCase())
+      );
+      setFilteredIssues(filtered);
+    }
+  }, [searchText, issues]);
+
+  const getMarkerType = (status?: string, submittedAt?: string) => {
+    if (status === 'resolved' || status === 'closed') return 'resolved';
+    if (status === 'in_progress') return 'in_progress';
+    if (submittedAt) {
+      const created = new Date(submittedAt).getTime();
+      if (Date.now() - created > 7 * 24 * 60 * 60 * 1000) return 'overdue';
+    }
+    return 'pending';
   };
 
-  const openInMaps = (latitude: number, longitude: number, address?: string) => {
-    const label = address ? encodeURIComponent(address) : 'Issue Location';
-    const url = `https://www.google.com/maps?q=${latitude},${longitude}&label=${label}`;
-    Linking.openURL(url);
-  };
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'submitted': return '#2563eb';
-      case 'in_progress': return '#f59e0b';
-      case 'resolved': return '#10b981';
-      case 'closed': return '#6b7280';
-      default: return '#6b7280';
+  const getMarkerColor = (type: string) => {
+    switch (type) {
+      case 'resolved':
+        return '#10B981'; // green
+      case 'in_progress':
+        return '#EF4444'; // red
+      case 'overdue':
+        return '#F59E0B'; // orange
+      default:
+        return '#3B82F6'; // blue
     }
   };
 
-  const renderIssue = ({ item }: { item: any }) => (
-    <TouchableOpacity
-      style={styles.issueCard}
-      onPress={() => openInMaps(item.location?.latitude, item.location?.longitude, item.location?.address)}
-    >
-      <View style={styles.issueHeader}>
-        <Text style={styles.issueId}>{item.reportId}</Text>
-        <View style={[styles.statusBadge, { backgroundColor: getStatusColor(item.status) }]}>
-          <Text style={styles.statusText}>{item.status.toUpperCase()}</Text>
-        </View>
-      </View>
-      
-      <Text style={styles.category}>
-        {item.issue?.category} - {item.issue?.subcategory}
-      </Text>
-      
-      <Text style={styles.description} numberOfLines={2}>
-        {item.issue?.description}
-      </Text>
-      
-      <View style={styles.locationContainer}>
-        <Text style={styles.locationIcon}>📍</Text>
-        <View style={styles.locationInfo}>
-          <Text style={styles.coordinates}>
-            {item.location?.latitude?.toFixed(6)}, {item.location?.longitude?.toFixed(6)}
-          </Text>
-          <Text style={styles.address} numberOfLines={1}>
-            {item.location?.address || 'Location not specified'}
-          </Text>
-        </View>
-        <Text style={styles.mapIcon}>🗺️</Text>
-      </View>
-      
-      <Text style={styles.date}>
-        📅 {new Date(item.submittedAt).toLocaleDateString()}
-      </Text>
-    </TouchableOpacity>
-  );
+  const getMarkerIcon = (type: string) => {
+    switch (type) {
+      case 'resolved':
+        return 'check-circle';
+      case 'in_progress':
+        return 'clock';
+      case 'overdue':
+        return 'alert-triangle';
+      default:
+        return 'map-pin';
+    }
+  };
+
+  // Fit all markers to map
+  useEffect(() => {
+    if (filteredIssues.length > 0 && mapRef.current) {
+      const coords = filteredIssues.map(r => ({
+        latitude: Number(r.location.latitude),
+        longitude: Number(r.location.longitude),
+      }));
+      setTimeout(() => {
+        mapRef.current?.fitToCoordinates(coords, {
+          edgePadding: { top: 100, right: 100, bottom: 100, left: 100 },
+          animated: true,
+        });
+      }, 500);
+    }
+  }, [filteredIssues]);
+
+  const handleMarkerPress = (issue: any) => {
+    setSelectedIssue(issue);
+    const { latitude, longitude } = issue.location;
+    const url = `https://www.google.com/maps/dir/?api=1&destination=${latitude},${longitude}`;
+    Linking.openURL(url);
+  };
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.container}>
-        <View style={styles.center}>
-          <Text>Loading map data...</Text>
-        </View>
-      </SafeAreaView>
+      <View style={styles.loaderContainer}>
+        <ActivityIndicator size="large" color="#3B82F6" />
+        <Text>Loading reports...</Text>
+      </View>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.title}>Issue Map</Text>
-        <Text style={styles.subtitle}>
-          {issues.length} issue{issues.length !== 1 ? 's' : ''} on map
-        </Text>
-        <Text style={styles.instruction}>
-          Tap on any issue to open in Google Maps
-        </Text>
+    <View style={styles.container}>
+      {/* Search Bar */}
+      <View style={styles.searchContainer}>
+        <TextInput
+          placeholder="Search by category"
+          value={searchText}
+          onChangeText={setSearchText}
+          style={styles.searchInput}
+        />
+        <TouchableOpacity style={styles.filterButton}>
+          <Feather name="filter" size={20} color="#fff" />
+        </TouchableOpacity>
       </View>
-      
-      <FlatList
-        data={issues}
-        renderItem={renderIssue}
-        keyExtractor={(item) => item.reportId}
-        contentContainerStyle={styles.list}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-        }
-        ListEmptyComponent={
-          <View style={styles.empty}>
-            <Text style={styles.emptyIcon}>🗺️</Text>
-            <Text style={styles.emptyText}>No issues to display on map</Text>
-            <Text style={styles.emptySubtext}>
-              Issues assigned to your department will appear here
-            </Text>
-          </View>
-        }
-      />
-    </SafeAreaView>
+
+      {/* Google Map */}
+      <MapView
+        ref={mapRef}
+        provider={PROVIDER_GOOGLE}
+        style={styles.map}
+        showsUserLocation
+        showsMyLocationButton
+        loadingEnabled
+        initialRegion={{
+          latitude: filteredIssues[0]?.location?.latitude || 20.5937,
+          longitude: filteredIssues[0]?.location?.longitude || 78.9629,
+          latitudeDelta: 5,
+          longitudeDelta: 5,
+        }}
+      >
+        {filteredIssues.map((issue, i) => {
+          const lat = Number(issue.location.latitude);
+          const lng = Number(issue.location.longitude);
+          const type = getMarkerType(issue.status, issue.submittedAt);
+          const color = getMarkerColor(type);
+          const icon = getMarkerIcon(type);
+
+          return (
+            <Marker
+              key={issue._id || issue.reportId || i}
+              coordinate={{ latitude: lat, longitude: lng }}
+              title={issue.issue?.category || 'Report'}
+              description={issue.location?.address || ''}
+              onPress={() => handleMarkerPress(issue)}
+              tracksViewChanges={false}
+            >
+              <View
+                style={[
+                  styles.customMarker,
+                  { backgroundColor: color },
+                  selectedIssue?._id === issue._id && { transform: [{ scale: 1.2 }] },
+                ]}
+              >
+                <Feather name={icon as any} size={16} color="#fff" />
+              </View>
+            </Marker>
+          );
+        })}
+      </MapView>
+
+      {/* Scrollable report list */}
+      {filteredIssues.length > 0 && (
+        <View style={styles.listContainer}>
+          <Text style={styles.listTitle}>Reports ({filteredIssues.length})</Text>
+          <FlatList
+            data={filteredIssues}
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            keyExtractor={(item, index) => item._id || item.reportId || index.toString()}
+            renderItem={({ item }) => {
+              const type = getMarkerType(item.status, item.submittedAt);
+              const color = getMarkerColor(type);
+
+              return (
+                <TouchableOpacity
+                  style={[styles.reportCard, { borderLeftColor: color }]}
+                  onPress={() => {
+                    setSelectedIssue(item);
+                    mapRef.current?.animateToRegion({
+                      latitude: Number(item.location.latitude),
+                      longitude: Number(item.location.longitude),
+                      latitudeDelta: 0.02,
+                      longitudeDelta: 0.02,
+                    });
+                  }}
+                >
+                  <Text style={styles.reportCategory}>{item.issue?.category || 'Unknown'}</Text>
+                  <Text style={styles.reportAddress} numberOfLines={1}>
+                    {item.location?.address || 'No address'}
+                  </Text>
+                  <TouchableOpacity
+                    style={styles.navButton}
+                    onPress={() =>
+                      Linking.openURL(
+                        `https://www.google.com/maps/dir/?api=1&destination=${item.location.latitude},${item.location.longitude}`
+                      )
+                    }
+                  >
+                    <Feather name="navigation" size={14} color="#fff" />
+                    <Text style={styles.navText}>Navigate</Text>
+                  </TouchableOpacity>
+                </TouchableOpacity>
+              );
+            }}
+          />
+        </View>
+      )}
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f8fafc',
+  container: { flex: 1 },
+  map: { width, height },
+  loaderContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+
+  // Search bar
+  searchContainer: {
+    position: 'absolute',
+    top: 15,
+    left: 16,
+    right: 16,
+    flexDirection: 'row',
+    zIndex: 10,
   },
-  center: {
+  searchInput: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  header: {
-    padding: 16,
     backgroundColor: '#fff',
-    borderBottomWidth: 1,
-    borderBottomColor: '#e5e7eb',
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#111827',
-  },
-  subtitle: {
+    borderRadius: 20,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
     fontSize: 14,
-    color: '#6b7280',
-    marginTop: 4,
-  },
-  instruction: {
-    fontSize: 12,
-    color: '#9ca3af',
-    marginTop: 4,
-    fontStyle: 'italic',
-  },
-  list: {
-    padding: 16,
-  },
-  issueCard: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
     elevation: 3,
   },
-  issueHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  issueId: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#111827',
-  },
-  statusBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
-  },
-  statusText: {
-    color: '#fff',
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  category: {
-    fontSize: 14,
-    color: '#6b7280',
-    marginBottom: 8,
-  },
-  description: {
-    fontSize: 14,
-    color: '#374151',
-    marginBottom: 12,
-  },
-  locationContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  locationIcon: {
-    fontSize: 16,
-    marginRight: 8,
-  },
-  locationInfo: {
-    flex: 1,
-  },
-  coordinates: {
-    fontSize: 12,
-    color: '#6b7280',
-    fontFamily: 'monospace',
-  },
-  address: {
-    fontSize: 12,
-    color: '#6b7280',
-    marginTop: 2,
-  },
-  mapIcon: {
-    fontSize: 20,
+  filterButton: {
     marginLeft: 8,
-  },
-  date: {
-    fontSize: 12,
-    color: '#6b7280',
-  },
-  empty: {
-    flex: 1,
+    backgroundColor: '#3B82F6',
+    borderRadius: 15,
+    padding: 12,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingVertical: 64,
+    elevation: 3,
   },
-  emptyIcon: {
-    fontSize: 48,
-    marginBottom: 16,
+
+  customMarker: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: '#fff',
+    shadowColor: '#000',
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 2 },
   },
-  emptyText: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#6b7280',
+
+  listContainer: {
+    position: 'absolute',
+    bottom: 20,
+    left: 0,
+    right: 0,
+  },
+  listTitle: {
+    color: '#111',
+    fontWeight: '700',
+    fontSize: 16,
+    marginLeft: 16,
     marginBottom: 8,
   },
-  emptySubtext: {
-    fontSize: 14,
-    color: '#9ca3af',
-    textAlign: 'center',
-    lineHeight: 20,
+  reportCard: {
+    backgroundColor: '#fff',
+    marginHorizontal: 10,
+    padding: 12,
+    borderRadius: 12,
+    width: 220,
+    elevation: 3,
+    shadowColor: '#000',
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    borderLeftWidth: 5,
   },
+  reportCategory: { fontWeight: '700', fontSize: 14, color: '#111' },
+  reportAddress: { fontSize: 12, color: '#555', marginTop: 4 },
+  navButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#3B82F6',
+    borderRadius: 6,
+    marginTop: 10,
+    alignSelf: 'flex-start',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+  },
+  navText: { color: '#fff', fontSize: 12, marginLeft: 4, fontWeight: '600' },
 });
