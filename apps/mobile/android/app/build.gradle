@@ -4,8 +4,9 @@ apply plugin: "com.facebook.react"
 
 def projectRoot = rootDir.getAbsoluteFile().getParentFile().getAbsolutePath()
 
-// Reanimated configuration
-project.ext.REACT_NATIVE_NODE_MODULES_DIR = new File(["node", "--print", "require.resolve('react-native/package.json')"].execute(null, rootDir).text.trim()).getParentFile().getAbsolutePath()
+// Fix for react-native-reanimated - point to react-native directory
+def reactNativePath = new File(["node", "--print", "require.resolve('react-native/package.json')"].execute(null, rootDir).text.trim()).getParentFile().getAbsolutePath()
+project.ext.REACT_NATIVE_NODE_MODULES_DIR = reactNativePath
 
 /**
  * This is the configuration block to customize your React Native Android app.

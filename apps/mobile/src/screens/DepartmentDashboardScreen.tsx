@@ -15,7 +15,7 @@ import {
 } from 'react-native';
 import LottieView from 'lottie-react-native';
 import { Feather } from '@expo/vector-icons';
-import { DepartmentService } from '../services/api';
+import { DepartmentService, NotificationApiService } from '../services/api';
 
 const screenWidth = Dimensions.get('window').width;
 
@@ -69,6 +69,7 @@ export default function DepartmentDashboardScreen({ navigation }: any) {
   const [isSearching, setIsSearching] = useState(false);
   const [query, setQuery] = useState('');
   const [index, setIndex] = useState(0);
+  const [unreadCount, setUnreadCount] = useState(0);
   const listRef = useRef<FlatList>(null);
 
   const loadAnalytics = async () => {
@@ -110,6 +111,25 @@ export default function DepartmentDashboardScreen({ navigation }: any) {
     }, AUTO_SCROLL_MS);
     return () => clearInterval(id);
   }, [index]);
+
+  // Fetch unread notification count
+  useEffect(() => {
+    const fetchUnreadCount = async () => {
+      try {
+        const response = await DepartmentService.getUnreadNotificationCount();
+        if (response.status === 'success') {
+          setUnreadCount(response.data.unreadCount || 0);
+        }
+      } catch (error) {
+        console.error('Error fetching unread count:', error);
+      }
+    };
+
+    fetchUnreadCount();
+    // Fetch every 30 seconds
+    const interval = setInterval(fetchUnreadCount, 30000);
+    return () => clearInterval(interval);
+  }, []);
 
   const onRefresh = () => {
     setRefreshing(true);
@@ -187,7 +207,16 @@ export default function DepartmentDashboardScreen({ navigation }: any) {
             <Feather name="search" size={22} color="#111827" />
           </TouchableOpacity>
           <TouchableOpacity style={styles.iconButton} activeOpacity={0.8} onPress={() => navigation.navigate('Notifications')}>
-            <Feather name="bell" size={22} color="#111827" />
+            <View style={styles.bellContainer}>
+              <Feather name="bell" size={22} color="#111827" />
+              {unreadCount > 0 && (
+                <View style={styles.notificationBadge}>
+                  <Text style={styles.badgeText}>
+                    {unreadCount > 99 ? '99+' : unreadCount}
+                  </Text>
+                </View>
+              )}
+            </View>
           </TouchableOpacity>
         </View>
       </View>
@@ -456,6 +485,26 @@ const styles = StyleSheet.create({
   },
   iconButton: {
     marginLeft: 14
+  },
+  bellContainer: {
+    position: 'relative'
+  },
+  notificationBadge: {
+    position: 'absolute',
+    top: -8,
+    right: -8,
+    backgroundColor: '#EF4444',
+    borderRadius: 10,
+    minWidth: 20,
+    height: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 4
+  },
+  badgeText: {
+    color: '#FFFFFF',
+    fontSize: 10,
+    fontWeight: '600'
   },
   searchBar: {
     marginTop: 12,

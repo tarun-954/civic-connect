@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { SafeAreaView, View, Text, StyleSheet, Image, TouchableOpacity, FlatList, Dimensions, TextInput, ScrollView } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import { ApiService } from '../services/api';
+import { ApiService, NotificationApiService } from '../services/api';
 // Try to import Lottie, fallback to null if not available
 let LottieView: any = null;
 try {
@@ -92,7 +92,7 @@ export default function HomeScreen({ navigation }: any) {
   useEffect(() => {
     const fetchUnreadCount = async () => {
       try {
-        const response = await ApiService.getUnreadNotificationCount();
+        const response = await NotificationApiService.getUnreadNotificationCount();
         if (response.status === 'success') {
           setUnreadCount(response.data.unreadCount || 0);
         }

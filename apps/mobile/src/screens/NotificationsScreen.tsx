@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   SafeAreaView,
   View,
@@ -8,60 +8,97 @@ import {
   TouchableOpacity,
   RefreshControl,
   Alert,
-  ActivityIndicator,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Feather } from '@expo/vector-icons';
-import { ApiService } from '../services/api';
-import { Fonts, TextStyles } from '../utils/fonts';
+import { useAuth } from '../contexts/AuthContext';
+import { ApiService, NotificationApiService, DepartmentService } from '../services/api';
+import NotificationService from '../services/notificationService';
 
 interface Notification {
   _id: string;
-  type: string;
   title: string;
   message: string;
+  type: 'new_report' | 'report_update' | 'report_resolved' | 'general' | 'issue_assigned' | 'issue_updated' | 'urgent_issue' | 'system';
   reportId?: string;
   trackingId?: string;
+  department?: string;
+  category?: string;
+  priority: 'low' | 'medium' | 'high';
+  read: boolean; // Department notifications use 'read' instead of 'isRead'
+  isRead?: boolean; // Citizen notifications use 'isRead'
   createdAt: string;
-  read: boolean;
 }
 
-export default function NotificationsScreen() {
+const NotificationsScreen = ({ navigation }: any) => {
+  const { user } = useAuth();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [isDepartmentUser, setIsDepartmentUser] = useState<boolean | null>(null);
 
-  const fetchNotifications = useCallback(async () => {
+  useEffect(() => {
+    checkUserType();
+  }, []);
+
+  useEffect(() => {
+    if (isDepartmentUser !== null) {
+      loadNotifications();
+    }
+  }, [isDepartmentUser]);
+
+  const checkUserType = async () => {
     try {
-      const response = await ApiService.getUserNotifications();
+      const userRole = await AsyncStorage.getItem('userRole');
+      setIsDepartmentUser(userRole === 'department');
+    } catch (error) {
+      console.error('Error checking user type:', error);
+    }
+  };
+
+  const loadNotifications = async () => {
+    try {
+      setLoading(true);
+      let response;
+      
+      if (isDepartmentUser) {
+        response = await DepartmentService.getNotifications();
+      } else {
+        response = await NotificationApiService.getUserNotifications();
+      }
+      
       if (response.status === 'success') {
         setNotifications(response.data.notifications || []);
       }
     } catch (error) {
-      console.error('Error fetching notifications:', error);
-      Alert.alert('Error', 'Failed to fetch notifications');
+      console.error('Error loading notifications:', error);
+      Alert.alert('Error', 'Failed to load notifications');
     } finally {
       setLoading(false);
-      setRefreshing(false);
     }
-  }, []);
+  };
 
-  useEffect(() => {
-    fetchNotifications();
-  }, [fetchNotifications]);
-
-  const onRefresh = useCallback(() => {
+  const onRefresh = async () => {
     setRefreshing(true);
-    fetchNotifications();
-  }, [fetchNotifications]);
+    await loadNotifications();
+    setRefreshing(false);
+  };
 
   const markAsRead = async (notificationId: string) => {
     try {
-      await ApiService.markNotificationAsRead(notificationId);
-      setNotifications(prev => 
-        prev.map(notif => 
-          notif._id === notificationId 
-            ? { ...notif, read: true }
-            : notif
+      if (isDepartmentUser) {
+        await DepartmentService.markNotificationAsRead(notificationId);
+      } else {
+        await NotificationApiService.markNotificationAsRead(notificationId);
+      }
+      
+      setNotifications(prev =>
+        prev.map(notif =>
+          notif._id === notificationId ? { 
+            ...notif, 
+            isRead: true, 
+            read: true 
+          } : notif
         )
       );
     } catch (error) {
@@ -69,31 +106,61 @@ export default function NotificationsScreen() {
     }
   };
 
-  const getNotificationIcon = (type: string) => {
-    switch (type) {
-      case 'report_submitted':
-        return 'check-circle';
-      case 'status_update':
-        return 'refresh-cw';
-      case 'assignment':
-        return 'user-check';
-      case 'resolution':
-        return 'check';
-      default:
-        return 'bell';
+  const handleNotificationPress = async (notification: Notification) => {
+    // Mark as read
+    const isRead = notification.isRead || notification.read;
+    if (!isRead) {
+      await markAsRead(notification._id);
+    }
+
+    // Navigate based on notification type and user type
+    if (isDepartmentUser) {
+      // For department users, navigate to department issues screen
+      if (notification.type === 'new_report' && notification.reportId) {
+        navigation.navigate('DepartmentTabs', { 
+          screen: 'Issues',
+          params: { highlightReportId: notification.reportId }
+        });
+      }
+    } else {
+      // For citizen users, navigate to track report
+      if (notification.type === 'new_report' && notification.reportId) {
+        navigation.navigate('TrackReport', { 
+          prefilledTrackingId: notification.trackingId 
+        });
+      } else if (notification.type === 'report_update' && notification.trackingId) {
+        navigation.navigate('TrackReport', { 
+          prefilledTrackingId: notification.trackingId 
+        });
+      } else if (notification.type === 'report_resolved' && notification.trackingId) {
+        navigation.navigate('TrackReport', { 
+          prefilledTrackingId: notification.trackingId 
+        });
+      }
     }
   };
 
-  const getNotificationColor = (type: string) => {
+  const getNotificationIcon = (type: string, priority: string) => {
     switch (type) {
-      case 'report_submitted':
-        return '#10B981';
-      case 'status_update':
-        return '#3B82F6';
-      case 'assignment':
-        return '#8B5CF6';
-      case 'resolution':
+      case 'new_report':
+        return { name: 'plus-circle', color: '#10B981' };
+      case 'report_update':
+        return { name: 'edit', color: '#F59E0B' };
+      case 'report_resolved':
+        return { name: 'check-circle', color: '#059669' };
+      default:
+        return { name: 'bell', color: priority === 'high' ? '#EF4444' : '#6B7280' };
+    }
+  };
+
+  const getPriorityColor = (priority: string) => {
+    switch (priority) {
+      case 'high':
+        return '#EF4444';
+      case 'medium':
         return '#F59E0B';
+      case 'low':
+        return '#10B981';
       default:
         return '#6B7280';
     }
@@ -102,94 +169,125 @@ export default function NotificationsScreen() {
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
     const now = new Date();
-    const diffInHours = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60));
-    
+    const diffInHours = (now.getTime() - date.getTime()) / (1000 * 60 * 60);
+
     if (diffInHours < 1) {
       return 'Just now';
     } else if (diffInHours < 24) {
-      return `${diffInHours}h ago`;
+      return `${Math.floor(diffInHours)}h ago`;
+    } else if (diffInHours < 48) {
+      return 'Yesterday';
     } else {
-      const diffInDays = Math.floor(diffInHours / 24);
-      return `${diffInDays}d ago`;
+      return date.toLocaleDateString();
     }
   };
 
-  const renderNotification = ({ item }: { item: Notification }) => (
-    <TouchableOpacity
-      style={[styles.notificationItem, !item.read && styles.unreadNotification]}
-      onPress={() => markAsRead(item._id)}
-    >
-      <View style={styles.notificationContent}>
-        <View style={styles.notificationHeader}>
-          <View style={styles.notificationIconContainer}>
-            <Feather
-              name={getNotificationIcon(item.type)}
-              size={20}
-              color={getNotificationColor(item.type)}
-            />
+  const renderNotification = ({ item }: { item: Notification }) => {
+    const icon = getNotificationIcon(item.type, item.priority);
+    const priorityColor = getPriorityColor(item.priority);
+
+    return (
+      <TouchableOpacity
+        style={[
+          styles.notificationItem,
+          !(item.isRead || item.read) && styles.unreadNotification
+        ]}
+        onPress={() => handleNotificationPress(item)}
+        activeOpacity={0.7}
+      >
+        <View style={styles.notificationContent}>
+          <View style={[styles.iconContainer, { backgroundColor: `${icon.color}15` }]}>
+            <Feather name={icon.name as any} size={20} color={icon.color} />
           </View>
-          <View style={styles.notificationTextContainer}>
-            <Text style={styles.notificationTitle}>{item.title}</Text>
-            <Text style={styles.notificationMessage}>{item.message}</Text>
-            {item.trackingId && (
-              <Text style={styles.trackingId}>Tracking ID: {item.trackingId}</Text>
-            )}
-          </View>
-          <View style={styles.notificationMeta}>
-            <Text style={styles.notificationTime}>{formatDate(item.createdAt)}</Text>
-            {!item.read && <View style={styles.unreadDot} />}
+          
+          <View style={styles.textContainer}>
+            <View style={styles.headerRow}>
+              <Text style={[
+                styles.notificationTitle,
+                !(item.isRead || item.read) && styles.unreadText
+              ]}>
+                {item.title}
+              </Text>
+              <View style={[styles.priorityDot, { backgroundColor: priorityColor }]} />
+            </View>
+            
+            <Text style={styles.notificationMessage} numberOfLines={2}>
+              {item.message}
+            </Text>
+            
+            <View style={styles.footerRow}>
+              <Text style={styles.timestamp}>
+                {formatDate(item.createdAt)}
+              </Text>
+              {item.category && (
+                <View style={styles.categoryTag}>
+                  <Text style={styles.categoryText}>{item.category}</Text>
+                </View>
+              )}
+            </View>
           </View>
         </View>
-      </View>
-    </TouchableOpacity>
+        
+        {!(item.isRead || item.read) && <View style={styles.unreadIndicator} />}
+      </TouchableOpacity>
+    );
+  };
+
+  const renderEmptyState = () => (
+    <View style={styles.emptyState}>
+      <Feather name="bell-off" size={48} color="#D1D5DB" />
+      <Text style={styles.emptyTitle}>No notifications</Text>
+      <Text style={styles.emptySubtitle}>
+        You'll see updates about your reports here
+      </Text>
+    </View>
   );
 
-  const unreadCount = notifications.filter(n => !n.read).length;
-
-  if (loading) {
-    return (
-      <SafeAreaView style={styles.container}>
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#0B5CAB" />
-          <Text style={styles.loadingText}>Loading notifications...</Text>
-        </View>
-      </SafeAreaView>
-    );
-  }
+  const unreadCount = notifications.filter(n => !(n.isRead || n.read)).length;
 
   return (
     <SafeAreaView style={styles.container}>
+      {/* Header */}
       <View style={styles.header}>
+        <TouchableOpacity
+          style={styles.backButton}
+          onPress={() => navigation.goBack()}
+        >
+          <Feather name="arrow-left" size={24} color="#111827" />
+        </TouchableOpacity>
         <Text style={styles.headerTitle}>Notifications</Text>
-        {unreadCount > 0 && (
-          <View style={styles.badge}>
-            <Text style={styles.badgeText}>{unreadCount}</Text>
-          </View>
-        )}
+        <View style={styles.headerRight}>
+          {unreadCount > 0 && (
+            <View style={styles.unreadBadge}>
+              <Text style={styles.unreadBadgeText}>{unreadCount}</Text>
+            </View>
+          )}
+        </View>
       </View>
 
-      {notifications.length === 0 ? (
-        <View style={styles.emptyContainer}>
-          <Feather name="bell" size={48} color="#D1D5DB" />
-          <Text style={styles.emptyTitle}>No Notifications</Text>
-          <Text style={styles.emptyMessage}>
-            You'll receive notifications about your reports and updates here.
-          </Text>
-        </View>
-      ) : (
-        <FlatList
-          data={notifications}
-          keyExtractor={(item) => item._id}
-          renderItem={renderNotification}
-          refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-          }
-          contentContainerStyle={styles.listContainer}
-        />
-      )}
+      {/* Notifications List */}
+      <FlatList
+        data={notifications}
+        keyExtractor={(item) => item._id}
+        renderItem={renderNotification}
+        contentContainerStyle={[
+          styles.listContainer,
+          notifications.length === 0 && styles.emptyListContainer
+        ]}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={['#159D7E']}
+            tintColor="#159D7E"
+          />
+        }
+        ListEmptyComponent={renderEmptyState}
+        showsVerticalScrollIndicator={false}
+      />
     </SafeAreaView>
   );
-}
+};
 
 const styles = StyleSheet.create({
   container: {
@@ -200,134 +298,154 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingVertical: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
     backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
     borderBottomColor: '#E5E7EB',
   },
+  backButton: {
+    padding: 8,
+    marginLeft: -8,
+  },
   headerTitle: {
-    fontSize: 24,
-    fontWeight: '700',
+    fontSize: 18,
+    fontWeight: '600',
     color: '#111827',
-    fontFamily: Fonts.display.bold,
   },
-  badge: {
+  headerRight: {
+    width: 40,
+    alignItems: 'flex-end',
+  },
+  unreadBadge: {
     backgroundColor: '#EF4444',
-    borderRadius: 12,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    minWidth: 24,
+    borderRadius: 10,
+    minWidth: 20,
+    height: 20,
+    justifyContent: 'center',
     alignItems: 'center',
+    paddingHorizontal: 6,
   },
-  badgeText: {
+  unreadBadgeText: {
     color: '#FFFFFF',
     fontSize: 12,
     fontWeight: '600',
-    fontFamily: Fonts.primary.bold,
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  loadingText: {
-    marginTop: 12,
-    fontSize: 16,
-    color: '#6B7280',
-    fontFamily: Fonts.primary.regular,
-  },
-  emptyContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 40,
-  },
-  emptyTitle: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: '#374151',
-    marginTop: 16,
-    marginBottom: 8,
-    fontFamily: Fonts.display.bold,
-  },
-  emptyMessage: {
-    fontSize: 16,
-    color: '#6B7280',
-    textAlign: 'center',
-    lineHeight: 24,
-    fontFamily: Fonts.primary.regular,
   },
   listContainer: {
     padding: 16,
+  },
+  emptyListContainer: {
+    flex: 1,
+    justifyContent: 'center',
   },
   notificationItem: {
     backgroundColor: '#FFFFFF',
     borderRadius: 12,
     marginBottom: 12,
+    padding: 16,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
+    shadowOffset: {
+      width: 0,
+      height: 1,
+    },
     shadowOpacity: 0.05,
     shadowRadius: 2,
     elevation: 1,
+    position: 'relative',
   },
   unreadNotification: {
     borderLeftWidth: 4,
-    borderLeftColor: '#0B5CAB',
+    borderLeftColor: '#159D7E',
   },
   notificationContent: {
-    padding: 16,
-  },
-  notificationHeader: {
     flexDirection: 'row',
     alignItems: 'flex-start',
   },
-  notificationIconContainer: {
+  iconContainer: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#F3F4F6',
-    alignItems: 'center',
     justifyContent: 'center',
+    alignItems: 'center',
     marginRight: 12,
   },
-  notificationTextContainer: {
+  textContainer: {
     flex: 1,
+  },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 4,
   },
   notificationTitle: {
     fontSize: 16,
     fontWeight: '600',
     color: '#111827',
-    marginBottom: 4,
-    fontFamily: Fonts.primary.bold,
+    flex: 1,
+  },
+  unreadText: {
+    fontWeight: '700',
+  },
+  priorityDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    marginLeft: 8,
   },
   notificationMessage: {
     fontSize: 14,
     color: '#6B7280',
     lineHeight: 20,
-    marginBottom: 4,
-    fontFamily: Fonts.primary.regular,
+    marginBottom: 8,
   },
-  trackingId: {
-    fontSize: 12,
-    color: '#0B5CAB',
-    fontWeight: '600',
-    fontFamily: Fonts.primary.bold,
+  footerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
-  notificationMeta: {
-    alignItems: 'flex-end',
-    marginLeft: 8,
-  },
-  notificationTime: {
+  timestamp: {
     fontSize: 12,
     color: '#9CA3AF',
-    fontFamily: Fonts.primary.regular,
   },
-  unreadDot: {
+  categoryTag: {
+    backgroundColor: '#F3F4F6',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  categoryText: {
+    fontSize: 11,
+    color: '#6B7280',
+    fontWeight: '500',
+  },
+  unreadIndicator: {
+    position: 'absolute',
+    top: 16,
+    right: 16,
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: '#0B5CAB',
-    marginTop: 4,
+    backgroundColor: '#159D7E',
+  },
+  emptyState: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 60,
+  },
+  emptyTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#6B7280',
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  emptySubtitle: {
+    fontSize: 14,
+    color: '#9CA3AF',
+    textAlign: 'center',
+    lineHeight: 20,
   },
 });
+
+export default NotificationsScreen;

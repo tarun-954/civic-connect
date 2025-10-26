@@ -28,7 +28,7 @@ import { useFonts } from 'expo-font';
 import { Text, View, ActivityIndicator } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { AuthProvider, useAuth } from './src/contexts/AuthContext';
-import NativeNotificationService from './src/services/notificationService';
+import NotificationService from './src/services/notificationService';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -126,18 +126,9 @@ function AuthStack() {
 function AppNavigator() {
   const { isAuthenticated, loading } = useAuth();
 
-  if (loading) {
-    return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#ffffff' }}>
-        <ActivityIndicator size="large" color="#159D7E" />
-        <Text style={{ marginTop: 16, fontSize: 16, color: '#6B7280' }}>Loading...</Text>
-      </View>
-    );
-  }
-
   // Setup notification listeners for navigation
   useEffect(() => {
-    NativeNotificationService.setupListeners((data) => {
+    NotificationService.setupListeners((data) => {
       console.log('Notification received with data:', data);
       // Handle notification tap - navigate to the appropriate screen
       if (data?.type === 'new_report' && data?.reportId) {
@@ -147,6 +138,15 @@ function AppNavigator() {
       }
     });
   }, []);
+
+  if (loading) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#ffffff' }}>
+        <ActivityIndicator size="large" color="#159D7E" />
+        <Text style={{ marginTop: 16, fontSize: 16, color: '#6B7280' }}>Loading...</Text>
+      </View>
+    );
+  }
 
   return (
     <NavigationContainer>
@@ -166,6 +166,7 @@ function AppNavigator() {
             <Stack.Screen name="AuthStack" component={AuthStack} />
             {/* Expose Department tabs even when not in citizen Auth */}
             <Stack.Screen name="DepartmentTabs" component={DepartmentTabs} />
+            <Stack.Screen name="Notifications" component={NotificationsScreen} />
           </>
         )}
       </Stack.Navigator>
@@ -182,7 +183,7 @@ export default function App() {
   useEffect(() => {
     const initializeNotifications = async () => {
       try {
-        await NativeNotificationService.requestPermissions();
+        await NotificationService.requestPermissions();
         console.log('Notification permissions granted');
       } catch (error) {
         console.error('Error initializing notifications:', error);
@@ -193,7 +194,7 @@ export default function App() {
 
     // Cleanup on unmount
     return () => {
-      NativeNotificationService.removeListeners();
+      NotificationService.removeListeners();
     };
   }, []);
 

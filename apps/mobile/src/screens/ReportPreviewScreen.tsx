@@ -19,7 +19,7 @@ import { Feather } from '@expo/vector-icons';
 import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
 declare const process: any;
 import { ApiService, formatReportForSubmission, getStoredUserProfile, fetchMyProfile } from '../services/api';
-import NativeNotificationService from '../services/notificationService';
+import NotificationService from '../services/notificationService';
 
 const { width } = Dimensions.get('window');
 
@@ -168,7 +168,7 @@ const ReportPreviewScreen: React.FC<ReportPreviewScreenProps> = ({ navigation, r
       
       // Show native notification for department users
       try {
-        await NativeNotificationService.notifyDepartmentOfNewReport({
+        await NotificationService.notifyDepartmentOfNewReport({
           title: formattedData.issue?.title || formattedData.issue?.subcategory || 'New Report',
           description: formattedData.issue?.description || 'A new report has been submitted',
           category: formattedData.issue?.category || 'General',

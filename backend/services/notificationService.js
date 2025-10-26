@@ -135,16 +135,13 @@ class NotificationService {
   // Get department code based on report category
   static getDepartmentByCategory(category) {
     const categoryMapping = {
-      'Road Issues': 'ROAD',
-      'Electricity': 'ELEC',
-      'Water Supply': 'WATER',
-      'Sanitation': 'SANIT',
-      'Public Safety': 'SAFETY',
-      'Healthcare': 'HEALTH',
-      'Education': 'EDUC',
-      'Environment': 'ENV',
-      'Transportation': 'TRANS',
-      'Housing': 'HOUSING'
+      'Road': 'ROAD_DEPT',
+      'Electricity': 'ELECTRICITY_DEPT', 
+      'Sewage': 'SEWAGE_DEPT',
+      'Cleanliness': 'CLEANLINESS_DEPT',
+      'Dustbin Full': 'WASTE_MGMT',
+      'Water': 'WATER_DEPT',
+      'Streetlight': 'STREETLIGHT_DEPT'
     };
 
     return categoryMapping[category] || null;

@@ -12,10 +12,13 @@ const departmentSchema = new mongoose.Schema({
   updatedAt: { type: Date, default: Date.now },
   // Simple notification store; for production use a dedicated collection/queue
   notifications: [{
-    type: { type: String, enum: ['issue_assigned', 'issue_updated', 'urgent_issue', 'system'], default: 'system' },
+    type: { type: String, enum: ['issue_assigned', 'issue_updated', 'urgent_issue', 'system', 'new_report', 'report_update', 'report_resolved'], default: 'system' },
     title: { type: String, required: true },
     message: { type: String, required: true },
     reportId: { type: String, default: null },
+    trackingId: { type: String, default: null },
+    priority: { type: String, enum: ['low', 'medium', 'high'], default: 'medium' },
+    category: { type: String, default: null },
     createdAt: { type: Date, default: Date.now },
     read: { type: Boolean, default: false }
   }]

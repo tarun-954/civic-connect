@@ -489,7 +489,12 @@ export class DepartmentService {
       const token = await AsyncStorage.getItem('deptToken');
       if (!token) throw new Error('No department token found');
       
-      const response = await fetch(`${this.baseURL}/departments/notifications`, {
+      // Get department info from token
+      const departmentInfo = await AsyncStorage.getItem('departmentInfo');
+      if (!departmentInfo) throw new Error('No department info found');
+      
+      const dept = JSON.parse(departmentInfo);
+      const response = await fetch(`${this.baseURL}/notifications/department/${dept.code}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       const result = await response.json();
@@ -499,6 +504,55 @@ export class DepartmentService {
       return result;
     } catch (error) {
       console.error('Error fetching notifications:', error);
+      throw error;
+    }
+  }
+
+  static async getUnreadNotificationCount(): Promise<any> {
+    try {
+      const token = await AsyncStorage.getItem('deptToken');
+      if (!token) throw new Error('No department token found');
+      
+      // Get department info from token
+      const departmentInfo = await AsyncStorage.getItem('departmentInfo');
+      if (!departmentInfo) throw new Error('No department info found');
+      
+      const dept = JSON.parse(departmentInfo);
+      const response = await fetch(`${this.baseURL}/notifications/department/${dept.code}/unread-count`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result.message || 'Failed to fetch unread count');
+      }
+      return result;
+    } catch (error) {
+      console.error('Error fetching unread count:', error);
+      throw error;
+    }
+  }
+
+  static async markNotificationAsRead(notificationId: string): Promise<any> {
+    try {
+      const token = await AsyncStorage.getItem('deptToken');
+      if (!token) throw new Error('No department token found');
+      
+      // Get department info from token
+      const departmentInfo = await AsyncStorage.getItem('departmentInfo');
+      if (!departmentInfo) throw new Error('No department info found');
+      
+      const dept = JSON.parse(departmentInfo);
+      const response = await fetch(`${this.baseURL}/notifications/department/${dept.code}/${notificationId}/read`, {
+        method: 'PATCH',
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result.message || 'Failed to mark notification as read');
+      }
+      return result;
+    } catch (error) {
+      console.error('Error marking notification as read:', error);
       throw error;
     }
   }
@@ -688,3 +742,69 @@ export async function updateProfile(profileData: {
     throw error;
   }
 }
+
+// Notification methods
+export const NotificationApiService = {
+  async getUserNotifications(): Promise<any> {
+    try {
+      const headers = await ApiService.authHeaders();
+      const response = await fetch(`${ApiService.baseURL}/notifications/user`, {
+        method: 'GET',
+        headers,
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.message || 'Failed to fetch notifications');
+      }
+
+      return result;
+    } catch (error) {
+      console.error('Error fetching notifications:', error);
+      throw error;
+    }
+  },
+
+  async markNotificationAsRead(notificationId: string): Promise<any> {
+    try {
+      const headers = await ApiService.authHeaders();
+      const response = await fetch(`${ApiService.baseURL}/notifications/user/${notificationId}/read`, {
+        method: 'PATCH',
+        headers,
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.message || 'Failed to mark notification as read');
+      }
+
+      return result;
+    } catch (error) {
+      console.error('Error marking notification as read:', error);
+      throw error;
+    }
+  },
+
+  async getUnreadNotificationCount(): Promise<any> {
+    try {
+      const headers = await ApiService.authHeaders();
+      const response = await fetch(`${ApiService.baseURL}/notifications/user/unread-count`, {
+        method: 'GET',
+        headers,
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.message || 'Failed to fetch unread count');
+      }
+
+      return result;
+    } catch (error) {
+      console.error('Error fetching unread count:', error);
+      throw error;
+    }
+  }
+};
