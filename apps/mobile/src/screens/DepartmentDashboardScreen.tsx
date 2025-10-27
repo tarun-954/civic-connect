@@ -322,7 +322,7 @@ export default function DepartmentDashboardScreen({ navigation }: any) {
             <View style={styles.servicesGrid}>
               <TouchableOpacity style={styles.serviceItem} onPress={() => navigation.navigate('Issues')} activeOpacity={0.9}>
                 <View style={[styles.serviceIcon, { backgroundColor: '#FFFFFF' }]}>
-                  <Image source={require('../images/icons8-list.gif')} style={{ width: 28, height: 28 }} />
+                  <Image source={require('../images/icons8-document (1).gif')} style={{ width: 28, height: 28 }} />
                 </View>
                 <Text style={styles.serviceLabel}>Manage Issues</Text>
               </TouchableOpacity>
@@ -340,7 +340,7 @@ export default function DepartmentDashboardScreen({ navigation }: any) {
               </TouchableOpacity>
               <TouchableOpacity style={styles.serviceItem} onPress={() => navigation.navigate('DepartmentTrackReport')} activeOpacity={0.9}>
                 <View style={[styles.serviceIcon, { backgroundColor: '#FFFFFF' }]}>
-                  <Image source={require('../images/icons8-document.gif')} style={{ width: 28, height: 28 }} />
+                  <Image source={require('../images/icons8-list.gif')} style={{ width: 28, height: 28 }} />
                 </View>
                 <Text style={styles.serviceLabel}>Track Report</Text>
               </TouchableOpacity>

@@ -716,15 +716,17 @@ const styles = StyleSheet.create({
   langChevron: { marginLeft: 6, color: '#6B7280', fontSize: 12 },
   content: { padding: 16 },
   analyticsHeader: {
-    flexDirection: 'row',
+    flexDirection: 'column',
     justifyContent: 'space-between',
     alignItems: 'center',
+    marginHorizontal: 20,
     marginBottom: 20,
   },
   analyticsTitle: {
     fontSize: 20,
     fontWeight: 'bold',
     color: '#111827',
+    
     fontFamily: Fonts.display.bold,
   },
   periodSelector: {
