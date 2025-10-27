@@ -206,6 +206,16 @@ export default function TrackReportScreen({ navigation, route }: any) {
     }
   }, [route?.params?.prefilledTrackingId]);
 
+  // Handle direct report data from navigation (for department view)
+  useEffect(() => {
+    if (route?.params?.reportData) {
+      const reportData = route.params.reportData;
+      setReport(reportData);
+      setTrackingId(reportData.trackingCode || '');
+      setActiveTab('search');
+    }
+  }, [route?.params?.reportData]);
+
   // Image picker function
   const pickImage = async () => {
     try {

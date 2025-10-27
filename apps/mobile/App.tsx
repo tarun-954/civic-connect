@@ -22,6 +22,8 @@ import DepartmentSettingsScreen from './src/screens/DepartmentSettingsScreen';
 import ReportIssueScreen from './src/screens/ReportIssueScreen';
 import ReportLocationScreen from './src/screens/ReportLocationScreen';
 import TrackReportScreen from './src/screens/TrackReportScreen';
+import ReportDetailsScreen from './src/screens/ReportDetailsScreen';
+import DepartmentTrackReportScreen from './src/screens/DepartmentTrackReportScreen';
 import DepartmentsScreen from './src/screens/DepartmentsScreen';
 import ReportPreviewScreen from './src/screens/ReportPreviewScreen';
 import { useFonts } from 'expo-font';
@@ -158,6 +160,8 @@ function AppNavigator() {
             <Stack.Screen name="ReportIssue" component={ReportIssueScreen} />
             <Stack.Screen name="ReportLocation" component={ReportLocationScreen} />
             <Stack.Screen name="TrackReport" component={TrackReportScreen} />
+            <Stack.Screen name="ReportDetails" component={ReportDetailsScreen} />
+            <Stack.Screen name="DepartmentTrackReport" component={DepartmentTrackReportScreen} />
             <Stack.Screen name="Departments" component={DepartmentsScreen} />
             <Stack.Screen name="ReportPreview" component={ReportPreviewScreen} />
           </>
@@ -167,6 +171,9 @@ function AppNavigator() {
             {/* Expose Department tabs even when not in citizen Auth */}
             <Stack.Screen name="DepartmentTabs" component={DepartmentTabs} />
             <Stack.Screen name="Notifications" component={NotificationsScreen} />
+            <Stack.Screen name="TrackReport" component={TrackReportScreen} />
+            <Stack.Screen name="ReportDetails" component={ReportDetailsScreen} />
+            <Stack.Screen name="DepartmentTrackReport" component={DepartmentTrackReportScreen} />
           </>
         )}
       </Stack.Navigator>

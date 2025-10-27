@@ -55,7 +55,7 @@ const departmentFeatures = [
   { icon: 'list', title: 'Issue Management', sub: 'Review and manage all reported issues in your department.' },
   { icon: 'bar-chart-2', title: 'Analytics & Reports', sub: 'Track performance metrics and generate detailed reports.' },
   { icon: 'map', title: 'Geographic View', sub: 'Visualize issues on map for better resource allocation.' },
-  { icon: 'bell', title: 'Smart Notifications', sub: 'Get alerts for urgent issues and priority updates.' },
+  { icon: 'search', title: 'Track Reports', sub: 'Search and track specific reports by tracking code or ID.' },
   { icon: 'cpu', title: 'AI Analysis', sub: 'Leverage machine learning for issue prioritization.' },
   { icon: 'users', title: 'Team Coordination', sub: 'Coordinate with team members for efficient resolution.' }
 ];
@@ -338,11 +338,11 @@ export default function DepartmentDashboardScreen({ navigation }: any) {
                 </View>
                 <Text style={styles.serviceLabel}>Map View</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.serviceItem} onPress={() => navigation.navigate('Notifications')} activeOpacity={0.9}>
+              <TouchableOpacity style={styles.serviceItem} onPress={() => navigation.navigate('DepartmentTrackReport')} activeOpacity={0.9}>
                 <View style={[styles.serviceIcon, { backgroundColor: '#FFFFFF' }]}>
-                  <Image source={require('../images/icons8-bell.gif')} style={{ width: 28, height: 28 }} />
+                  <Image source={require('../images/icons8-document.gif')} style={{ width: 28, height: 28 }} />
                 </View>
-                <Text style={styles.serviceLabel}>Notifications</Text>
+                <Text style={styles.serviceLabel}>Track Report</Text>
               </TouchableOpacity>
             </View>
 
