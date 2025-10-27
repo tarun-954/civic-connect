@@ -48,14 +48,25 @@ export default function MapViewScreen() {
     loadReports();
   }, []);
 
-  // Filter reports by search text
+  // Filter reports by search text (category, subcategory, description, or address)
   useEffect(() => {
     if (!searchText) {
       setFilteredReports(reports);
     } else {
-      const filtered = reports.filter(r =>
-        r.issue?.category?.toLowerCase().includes(searchText.toLowerCase())
-      );
+      const searchLower = searchText.toLowerCase();
+      const filtered = reports.filter(r => {
+        const category = r.issue?.category?.toLowerCase() || '';
+        const subcategory = r.issue?.subcategory?.toLowerCase() || '';
+        const description = r.issue?.description?.toLowerCase() || '';
+        const address = r.location?.address?.toLowerCase() || '';
+        const status = r.status?.toLowerCase() || '';
+        
+        return category.includes(searchLower) ||
+               subcategory.includes(searchLower) ||
+               description.includes(searchLower) ||
+               address.includes(searchLower) ||
+               status.includes(searchLower);
+      });
       setFilteredReports(filtered);
     }
   }, [searchText, reports]);
@@ -96,19 +107,28 @@ export default function MapViewScreen() {
     }
   };
 
-  // Fit all markers to map
+  // Fit all markers to map when filtered reports change
   useEffect(() => {
     if (filteredReports.length > 0 && mapRef.current) {
-      const coords = filteredReports.map(r => ({
-        latitude: Number(r.location.latitude),
-        longitude: Number(r.location.longitude),
-      }));
-      setTimeout(() => {
-        mapRef.current?.fitToCoordinates(coords, {
-          edgePadding: { top: 100, right: 100, bottom: 100, left: 100 },
-          animated: true,
-        });
-      }, 500);
+      const validCoords = filteredReports
+        .map(r => {
+          const lat = Number(r.location?.latitude);
+          const lng = Number(r.location?.longitude);
+          if (isFinite(lat) && isFinite(lng) && lat !== 0 && lng !== 0) {
+            return { latitude: lat, longitude: lng };
+          }
+          return null;
+        })
+        .filter(c => c !== null) as { latitude: number; longitude: number }[];
+      
+      if (validCoords.length > 0) {
+        setTimeout(() => {
+          mapRef.current?.fitToCoordinates(validCoords, {
+            edgePadding: { top: 100, right: 100, bottom: 100, left: 100 },
+            animated: true,
+          });
+        }, 500);
+      }
     }
   }, [filteredReports]);
 
@@ -132,31 +152,40 @@ export default function MapViewScreen() {
     <View style={styles.container}>
       {/* Search Bar */}
       <View style={styles.searchContainer}>
-            <TextInput
-          placeholder="Search by category"
+        <TextInput
+          placeholder="Search by category, status, or address"
           value={searchText}
           onChangeText={setSearchText}
-              style={styles.searchInput}
-            />
-        <TouchableOpacity style={styles.filterButton}>
-          <Feather name="filter" size={20} color="#fff" />
-        </TouchableOpacity>
-        </View>
+          style={styles.searchInput}
+        />
+        {searchText.length > 0 && (
+          <TouchableOpacity 
+            onPress={() => setSearchText('')} 
+            style={styles.clearButton}
+          >
+            <Feather name="x" size={18} color="#666" />
+          </TouchableOpacity>
+        )}
+      </View>
 
       {/* Google Map */}
         <MapView
           ref={mapRef}
-        provider={PROVIDER_GOOGLE}
-        style={styles.map}
-        showsUserLocation
-        showsMyLocationButton
-        loadingEnabled
+          provider={PROVIDER_GOOGLE}
+          style={styles.map}
+          showsUserLocation
+          showsMyLocationButton
+          loadingEnabled
           initialRegion={{
-          latitude: filteredReports[0]?.location?.latitude || 20.5937,
-          longitude: filteredReports[0]?.location?.longitude || 78.9629,
-          latitudeDelta: 5,
-          longitudeDelta: 5,
-        }}
+            latitude: filteredReports[0]?.location?.latitude 
+              ? Number(filteredReports[0]?.location?.latitude) 
+              : 20.5937,
+            longitude: filteredReports[0]?.location?.longitude 
+              ? Number(filteredReports[0]?.location?.longitude) 
+              : 78.9629,
+            latitudeDelta: 5,
+            longitudeDelta: 5,
+          }}
       >
         {filteredReports.map((r, i) => {
           const lat = Number(r.location.latitude);
@@ -262,14 +291,15 @@ const styles = StyleSheet.create({
     fontSize: 14,
     elevation: 3,
   },
-  filterButton: {
+  clearButton: {
     marginLeft: 8,
-    backgroundColor: '#3B82F6',
+    backgroundColor: '#f0f0f0',
     borderRadius: 15,
-    padding: 12,
+    width: 30,
+    height: 30,
     justifyContent: 'center',
     alignItems: 'center',
-    elevation: 3,
+    elevation: 2,
   },
 
   customMarker: {
