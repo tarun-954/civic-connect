@@ -36,6 +36,8 @@ const ReportPreviewScreen: React.FC<ReportPreviewScreenProps> = ({ navigation, r
   const [imageModalVisible, setImageModalVisible] = useState(false);
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState({ completed: 0, total: 0 });
+  const [isUploading, setIsUploading] = useState(false);
   
   // Generate report ID and other metadata
   const generateReportId = () => {
@@ -120,25 +122,48 @@ const ReportPreviewScreen: React.FC<ReportPreviewScreenProps> = ({ navigation, r
       setIsSubmitting(true);
       
       // Upload images first if they exist
-      let uploadedPhotos = [];
+      let uploadedPhotos: Array<{ uri: string; filename: string; size: number; uploadedAt: Date }> = [];
       if (displayData.issue?.photos && displayData.issue.photos.length > 0) {
-        console.log('📤 Starting image upload process...');
-        for (const photo of displayData.issue.photos) {
-          try {
-            console.log('📤 Uploading image:', photo.uri);
-            const uploadedUrl = await ApiService.uploadImage(photo.uri);
-            uploadedPhotos.push({
-              uri: uploadedUrl,
-              filename: `uploaded_${Date.now()}.jpg`,
-              size: null,
-              uploadedAt: new Date()
-            });
-            console.log('✅ Image uploaded successfully:', uploadedUrl);
-          } catch (error) {
-            console.error('❌ Failed to upload image:', error);
-          }
+        console.log('📤 Starting parallel image upload process...');
+        setIsUploading(true);
+        setUploadProgress({ completed: 0, total: displayData.issue.photos.length });
+        
+        try {
+          uploadedPhotos = await ApiService.uploadImages(
+            displayData.issue.photos,
+            (completed, total) => {
+              setUploadProgress({ completed, total });
+              console.log(`📤 Upload progress: ${completed}/${total} images`);
+            }
+          );
+          console.log('✅ All images uploaded successfully:', uploadedPhotos.length);
+        } catch (uploadError) {
+          console.error('❌ Image upload failed:', uploadError);
+          Alert.alert(
+            'Upload Failed',
+            'Failed to upload some images. Do you want to continue without the failed images?',
+            [
+              {
+                text: 'Cancel',
+                onPress: () => {
+                  setIsSubmitting(false);
+                  setIsUploading(false);
+                  return;
+                }
+              },
+              {
+                text: 'Continue',
+                onPress: () => {
+                  // Continue with successfully uploaded images
+                  console.log('Continuing with uploaded images:', uploadedPhotos.length);
+                }
+              }
+            ]
+          );
+          return;
+        } finally {
+          setIsUploading(false);
         }
-        console.log('📤 Upload process completed. Uploaded photos:', uploadedPhotos.length);
       }
       
       // Format the report data for API submission
@@ -423,6 +448,28 @@ const ReportPreviewScreen: React.FC<ReportPreviewScreenProps> = ({ navigation, r
         ))}
       </ScrollView>
 
+      {/* Upload Progress */}
+      {isUploading && uploadProgress.total > 0 && (
+        <View style={styles.progressContainer}>
+          <View style={styles.progressHeader}>
+            <Text style={styles.progressText}>
+              Uploading Images: {uploadProgress.completed} of {uploadProgress.total}
+            </Text>
+            <Text style={styles.progressPercentage}>
+              {Math.round((uploadProgress.completed / uploadProgress.total) * 100)}%
+            </Text>
+          </View>
+          <View style={styles.progressBar}>
+            <View 
+              style={[
+                styles.progressFill, 
+                { width: `${(uploadProgress.completed / uploadProgress.total) * 100}%` }
+              ]} 
+            />
+          </View>
+        </View>
+      )}
+
       {/* Bottom Actions */}
       <View style={styles.bottomActions}>
         <TouchableOpacity
@@ -433,14 +480,21 @@ const ReportPreviewScreen: React.FC<ReportPreviewScreenProps> = ({ navigation, r
         </TouchableOpacity>
         
         <TouchableOpacity
-          style={[styles.submitButton, isSubmitting && styles.submitButtonDisabled]}
+          style={[styles.submitButton, (isSubmitting || isUploading) && styles.submitButtonDisabled]}
           onPress={handleSubmitReport}
-          disabled={isSubmitting}
+          disabled={isSubmitting || isUploading}
         >
-          {isSubmitting ? (
+          {isUploading ? (
             <View style={styles.submitButtonContent}>
               <ActivityIndicator color="#fff" size="small" style={styles.submitSpinner} />
-              <Text style={styles.submitButtonText}>Submitting...</Text>
+              <Text style={styles.submitButtonText}>
+                Uploading Images... {uploadProgress.completed}/{uploadProgress.total}
+              </Text>
+            </View>
+          ) : isSubmitting ? (
+            <View style={styles.submitButtonContent}>
+              <ActivityIndicator color="#fff" size="small" style={styles.submitSpinner} />
+              <Text style={styles.submitButtonText}>Submitting Report...</Text>
             </View>
           ) : (
             <Text style={styles.submitButtonText}>Submit Report</Text>
@@ -856,6 +910,40 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: '#fff',
+  },
+  progressContainer: {
+    backgroundColor: '#fff',
+    paddingHorizontal: 20,
+    paddingVertical: 15,
+    borderTopWidth: 1,
+    borderTopColor: '#e9ecef',
+  },
+  progressHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  progressText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#333',
+  },
+  progressPercentage: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#007AFF',
+  },
+  progressBar: {
+    height: 6,
+    backgroundColor: '#E5E7EB',
+    borderRadius: 3,
+    overflow: 'hidden',
+  },
+  progressFill: {
+    height: '100%',
+    backgroundColor: '#007AFF',
+    borderRadius: 3,
   },
 });
 

@@ -10,7 +10,7 @@ const API_BASE_URL = Platform.OS === 'android'
   : 'http://localhost:3000/api';
 // API Service for Civic Connect
 export class ApiService {
-  private static baseURL = API_BASE_URL;
+  static baseURL = API_BASE_URL;
 
   // Submit a new report
   static async submitReport(reportData: any): Promise<any> {
@@ -124,7 +124,7 @@ export class ApiService {
   }
 
   // Auth header helper
-  private static async authHeaders() {
+  static async authHeaders() {
     try {
       const token = await AsyncStorage.getItem('authToken');
       return token ? { Authorization: `Bearer ${token}` } : {};
@@ -305,12 +305,33 @@ export class ApiService {
     }
   }
 
-  // Upload image to server
-  static async uploadImage(imageUri: string): Promise<string> {
+  // Compress image before upload (simplified version)
+  static async compressImage(imageUri: string): Promise<string> {
+    // For now, return the original URI
+    // In a production app, you would implement proper image compression here
+    // using libraries like react-native-image-resizer or expo-image-manipulator
+    console.log(`📏 Using original image (compression disabled): ${imageUri}`);
+    return imageUri;
+  }
+
+  // Upload image to server with retry mechanism
+  static async uploadImage(imageUri: string, retryCount: number = 0): Promise<string> {
+    const maxRetries = 3;
+    const retryDelay = 1000 * (retryCount + 1); // Exponential backoff
+
     try {
       const token = await AsyncStorage.getItem('authToken');
       if (!token) {
         throw new Error('No authentication token found');
+      }
+
+      // Compress image before upload (with fallback)
+      let compressedUri = imageUri;
+      try {
+        compressedUri = await this.compressImage(imageUri);
+      } catch (compressionError) {
+        console.warn('⚠️ Compression failed, using original image:', compressionError);
+        compressedUri = imageUri;
       }
 
       // Create FormData for file upload
@@ -318,12 +339,17 @@ export class ApiService {
       
       // For React Native, we need to create a file object
       const file = {
-        uri: imageUri,
+        uri: compressedUri,
         type: 'image/jpeg',
         name: `image_${Date.now()}.jpg`,
       } as any;
       
       formData.append('image', file);
+
+      console.log(`📤 Uploading image (attempt ${retryCount + 1}/${maxRetries + 1})`);
+      console.log(`📤 Original URI:`, imageUri);
+      console.log(`📤 Compressed URI:`, compressedUri);
+      console.log(`📤 File name:`, file.name);
 
       const response = await fetch(`${this.baseURL}/reports/upload-image`, {
         method: 'POST',
@@ -334,15 +360,70 @@ export class ApiService {
         body: formData,
       });
 
-      const result = await response.json();
-
-      if (!response.ok) {
-        throw new Error(result.message || 'Failed to upload image');
+      console.log(`📤 Upload response status: ${response.status}`);
+      
+      let result;
+      try {
+        const text = await response.text();
+        console.log(`📤 Upload response text:`, text);
+        result = JSON.parse(text);
+      } catch (parseError) {
+        console.error(`❌ Failed to parse response:`, parseError);
+        throw new Error('Invalid response from server');
       }
 
+      if (!response.ok) {
+        const errorMessage = result?.message || `Server error: ${response.status}`;
+        console.error(`❌ Upload failed:`, errorMessage);
+        throw new Error(errorMessage);
+      }
+
+      if (!result?.data?.url) {
+        console.error(`❌ Response missing URL:`, result);
+        throw new Error('Server response missing image URL');
+      }
+
+      console.log(`✅ Image uploaded successfully:`, result.data.url);
       return result.data.url;
+    } catch (error: any) {
+      console.error(`❌ Error uploading image (attempt ${retryCount + 1}):`, error);
+      
+      // Retry if we haven't exceeded max retries
+      if (retryCount < maxRetries) {
+        console.log(`🔄 Retrying upload in ${retryDelay}ms...`);
+        await new Promise(resolve => setTimeout(resolve, retryDelay));
+        return this.uploadImage(imageUri, retryCount + 1);
+      }
+      
+      throw error;
+    }
+  }
+
+  // Upload multiple images in parallel with progress tracking
+  static async uploadImages(images: Array<{ uri: string }>, onProgress?: (completed: number, total: number) => void): Promise<Array<{ uri: string; filename: string; size: number; uploadedAt: Date }>> {
+    const uploadPromises = images.map(async (image, index) => {
+      try {
+        const uploadedUrl = await this.uploadImage(image.uri);
+        onProgress?.(index + 1, images.length);
+        return {
+          uri: uploadedUrl,
+          filename: `uploaded_${Date.now()}_${index}.jpg`,
+          size: 0,
+          uploadedAt: new Date()
+        };
+      } catch (error: any) {
+        console.error(`❌ Failed to upload image ${index + 1}:`, error);
+        const errorMessage = error?.message || error?.toString() || 'Unknown error';
+        throw new Error(`Failed to upload image ${index + 1}/${images.length}: ${errorMessage}`);
+      }
+    });
+
+    try {
+      const results = await Promise.all(uploadPromises);
+      console.log(`✅ All ${images.length} images uploaded successfully`);
+      return results;
     } catch (error) {
-      console.error('Error uploading image:', error);
+      console.error('❌ One or more images failed to upload:', error);
       throw error;
     }
   }
@@ -384,7 +465,7 @@ export const formatReportForSubmission = (reportData: any) => {
 
 // Department APIs
 export class DepartmentService {
-  private static baseURL = API_BASE_URL;
+  static baseURL = API_BASE_URL;
 
   static async signup(payload: { name: string; code: string; email: string; password: string }): Promise<any> {
     try {
@@ -608,7 +689,7 @@ export class DepartmentService {
 
 // OTP APIs
 export class OtpService {
-  private static baseURL = API_BASE_URL;
+  static baseURL = API_BASE_URL;
 
   static async requestOtp(payload: { target: string; channel: 'phone' | 'email'; purpose: 'login' | 'signup'; }) {
     const response = await fetch(`${this.baseURL}/users/request-otp`, {
@@ -747,7 +828,7 @@ export async function updateProfile(profileData: {
 export const NotificationApiService = {
   async getUserNotifications(): Promise<any> {
     try {
-      const headers = await ApiService.authHeaders();
+      const headers = await ApiService.authHeaders() as any;
       const response = await fetch(`${ApiService.baseURL}/notifications/user`, {
         method: 'GET',
         headers,
@@ -768,7 +849,7 @@ export const NotificationApiService = {
 
   async markNotificationAsRead(notificationId: string): Promise<any> {
     try {
-      const headers = await ApiService.authHeaders();
+      const headers = await ApiService.authHeaders() as any;
       const response = await fetch(`${ApiService.baseURL}/notifications/user/${notificationId}/read`, {
         method: 'PATCH',
         headers,
@@ -789,7 +870,7 @@ export const NotificationApiService = {
 
   async getUnreadNotificationCount(): Promise<any> {
     try {
-      const headers = await ApiService.authHeaders();
+      const headers = await ApiService.authHeaders() as any;
       const response = await fetch(`${ApiService.baseURL}/notifications/user/unread-count`, {
         method: 'GET',
         headers,

@@ -27,17 +27,18 @@ const storage = multer.diskStorage({
 const upload = multer({ 
   storage: storage,
   limits: {
-    fileSize: 5 * 1024 * 1024 // 5MB limit
+    fileSize: 10 * 1024 * 1024, // 10MB limit (increased from 5MB)
+    files: 10 // Allow up to 10 files per request
   },
   fileFilter: function (req, file, cb) {
-    const allowedTypes = /jpeg|jpg|png|gif/;
+    const allowedTypes = /jpeg|jpg|png|gif|webp/;
     const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
     const mimetype = allowedTypes.test(file.mimetype);
     
     if (mimetype && extname) {
       return cb(null, true);
     } else {
-      cb(new Error('Only image files are allowed'));
+      cb(new Error('Only image files (JPEG, PNG, GIF, WebP) are allowed'));
     }
   }
 });
@@ -568,6 +569,8 @@ router.post('/upload-image', requireAuth, upload.single('image'), async (req, re
     }
 
     console.log('✅ File received:', req.file.filename);
+    console.log('✅ File size:', req.file.size, 'bytes');
+    console.log('✅ File type:', req.file.mimetype);
     
     // Create accessible URL for the uploaded image
     const imageUrl = `${req.protocol}://${req.get('host')}/api/reports/uploads/reports/${req.file.filename}`;
@@ -586,6 +589,22 @@ router.post('/upload-image', requireAuth, upload.single('image'), async (req, re
     });
   } catch (error) {
     console.error('❌ Error uploading image:', error);
+    
+    // Handle specific multer errors
+    if (error.code === 'LIMIT_FILE_SIZE') {
+      return res.status(400).json({
+        status: 'error',
+        message: 'File too large. Maximum size is 10MB.'
+      });
+    }
+    
+    if (error.code === 'LIMIT_FILE_COUNT') {
+      return res.status(400).json({
+        status: 'error',
+        message: 'Too many files. Maximum is 10 files per request.'
+      });
+    }
+    
     res.status(500).json({
       status: 'error',
       message: 'Failed to upload image',
