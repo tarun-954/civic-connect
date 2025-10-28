@@ -26,6 +26,7 @@ import ReportDetailsScreen from './src/screens/ReportDetailsScreen';
 import DepartmentTrackReportScreen from './src/screens/DepartmentTrackReportScreen';
 import DepartmentsScreen from './src/screens/DepartmentsScreen';
 import ReportPreviewScreen from './src/screens/ReportPreviewScreen';
+import MLAnalysisScreen from './src/screens/MLAnalysisScreen';
 import { useFonts } from 'expo-font';
 import { Text, View, ActivityIndicator } from 'react-native';
 import { Feather } from '@expo/vector-icons';
@@ -174,6 +175,7 @@ function AppNavigator() {
             <Stack.Screen name="TrackReport" component={TrackReportScreen} />
             <Stack.Screen name="ReportDetails" component={ReportDetailsScreen} />
             <Stack.Screen name="DepartmentTrackReport" component={DepartmentTrackReportScreen} />
+            <Stack.Screen name="MLAnalysis" component={MLAnalysisScreen} />
           </>
         )}
       </Stack.Navigator>

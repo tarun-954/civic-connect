@@ -427,6 +427,50 @@ export class ApiService {
       throw error;
     }
   }
+
+  // Analyze image using ML service for pothole detection
+  static async analyzeImage(imageUri: string): Promise<any> {
+    try {
+      const token = await AsyncStorage.getItem('authToken');
+      if (!token) {
+        throw new Error('No authentication token found');
+      }
+
+      const formData = new FormData();
+      
+      const file = {
+        uri: imageUri,
+        type: 'image/jpeg',
+        name: `analysis_${Date.now()}.jpg`,
+      } as any;
+      
+      formData.append('image', file);
+
+      console.log(`🤖 Analyzing image for potholes:`, imageUri);
+
+      const response = await fetch(`${this.baseURL}/reports/analyze-image`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+        body: formData,
+      });
+
+      console.log(`🤖 Analysis response status: ${response.status}`);
+      
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.message || 'Failed to analyze image');
+      }
+
+      console.log(`✅ Image analyzed successfully:`, result);
+      return result;
+    } catch (error: any) {
+      console.error('❌ Error analyzing image:', error);
+      throw error;
+    }
+  }
 }
 
 // Helper function to format report data for API submission
@@ -444,7 +488,10 @@ export const formatReportForSubmission = (reportData: any) => {
       description: reportData.issue?.description || 'No description provided',
       inputMode: reportData.issue?.inputMode || 'text',
       hasVoiceRecording: reportData.issue?.hasVoiceRecording || false,
-      photos: reportData.issue?.photos || []
+      photos: reportData.issue?.photos || [],
+      priority: reportData.issue?.priority || null,
+      severity: reportData.issue?.severity || null,
+      mlAnalysis: reportData.issue?.mlAnalysis || null
     },
     location: {
       latitude: reportData.location?.latitude || 0,

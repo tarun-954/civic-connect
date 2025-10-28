@@ -29,6 +29,19 @@ const reportSchema = new mongoose.Schema({
     enum: ['low', 'medium', 'high', 'urgent'],
     default: 'medium'
   },
+  severity: {
+    type: String,
+    enum: ['low', 'medium', 'high', 'critical'],
+    default: 'low'
+  },
+  mlAnalysis: {
+    detected: { type: Boolean, default: false },
+    confidence: { type: Number, default: 0 },
+    recommendation: { type: String, default: null },
+    numDetections: { type: Number, default: 0 },
+    totalArea: { type: Number, default: 0 },
+    analyzedAt: { type: Date, default: null }
+  },
   
   // Timestamps
   submittedAt: {
@@ -101,7 +114,19 @@ const reportSchema = new mongoose.Schema({
         type: Date,
         default: Date.now
       }
-    }]
+    }],
+    priority: {
+      type: String,
+      default: null
+    },
+    severity: {
+      type: String,
+      default: null
+    },
+    mlAnalysis: {
+      type: mongoose.Schema.Types.Mixed,
+      default: null
+    }
   },
   
   // Location Information

@@ -23,6 +23,31 @@ export default function MapViewScreen() {
   const [selectedReport, setSelectedReport] = useState<any>(null);
   const [searchText, setSearchText] = useState('');
   const [filteredReports, setFilteredReports] = useState<any[]>([]);
+  
+  // Group reports by coordinates (for clustering)
+  const clusterMarkers = (reports: any[]) => {
+    const clusters = new Map();
+    
+    reports.forEach(report => {
+      const lat = Number(report.location?.latitude);
+      const lng = Number(report.location?.longitude);
+      const key = `${lat.toFixed(4)}_${lng.toFixed(4)}`;
+      
+      if (!clusters.has(key)) {
+        clusters.set(key, []);
+      }
+      clusters.get(key).push(report);
+    });
+    
+    return Array.from(clusters.entries()).map(([key, reports], index) => ({
+      key,
+      reports: reports as any[],
+      coordinate: {
+        latitude: Number((reports as any[])[0].location?.latitude),
+        longitude: Number((reports as any[])[0].location?.longitude),
+      },
+    }));
+  };
 
   // Load reports
   const loadReports = async () => {
@@ -187,7 +212,51 @@ export default function MapViewScreen() {
             longitudeDelta: 5,
           }}
       >
-        {filteredReports.map((r, i) => {
+        {clusterMarkers(filteredReports).map((cluster, clusterIndex) => {
+          const clusterSize = cluster.reports.length;
+          
+          // If multiple reports at same location, show them side by side with offset
+          if (clusterSize > 1) {
+            return cluster.reports.map((r, index) => {
+              const type = getMarkerType(r.status, r.submittedAt);
+              const color = getMarkerColor(type);
+              const icon = getMarkerIcon(type);
+              
+              // Offset calculation: spread markers in a small circle
+              const angle = (index / clusterSize) * 2 * Math.PI;
+              const radius = 0.0003; // Small offset in degrees
+              const latOffset = radius * Math.cos(angle);
+              const lngOffset = radius * Math.sin(angle);
+              
+              return (
+                <Marker
+                  key={`${cluster.key}_${r._id || index}`}
+                  coordinate={{
+                    latitude: cluster.coordinate.latitude + latOffset,
+                    longitude: cluster.coordinate.longitude + lngOffset,
+                  }}
+                  title={`${r.issue?.category || 'Report'} (${clusterSize} issues)`}
+                  description={r.location?.address || ''}
+                  onPress={() => handleMarkerPress(r)}
+                  tracksViewChanges={false}
+                  anchor={{ x: 0.5, y: 0.5 }}
+                >
+                  <View
+                    style={[
+                      styles.customMarker,
+                      { backgroundColor: color },
+                      selectedReport?._id === r._id && { transform: [{ scale: 1.3 }] },
+                    ]}
+                  >
+                    <Feather name={icon as any} size={16} color="#fff" />
+                  </View>
+                </Marker>
+              );
+            });
+          }
+          
+          // Single report at this location
+          const r = cluster.reports[0];
           const lat = Number(r.location.latitude);
           const lng = Number(r.location.longitude);
           const type = getMarkerType(r.status, r.submittedAt);
@@ -196,7 +265,7 @@ export default function MapViewScreen() {
 
           return (
             <Marker
-              key={r._id || i}
+              key={r._id || clusterIndex}
               coordinate={{ latitude: lat, longitude: lng }}
               title={r.issue?.category || 'Report'}
               description={r.location?.address || ''}

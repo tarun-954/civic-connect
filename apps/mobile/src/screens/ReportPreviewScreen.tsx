@@ -38,6 +38,7 @@ const ReportPreviewScreen: React.FC<ReportPreviewScreenProps> = ({ navigation, r
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [uploadProgress, setUploadProgress] = useState({ completed: 0, total: 0 });
   const [isUploading, setIsUploading] = useState(false);
+  const [mlAnalysis, setMlAnalysis] = useState<any>(null);
   
   // Generate report ID and other metadata
   const generateReportId = () => {
@@ -165,9 +166,48 @@ const ReportPreviewScreen: React.FC<ReportPreviewScreenProps> = ({ navigation, r
           setIsUploading(false);
         }
       }
+
+      // Analyze images for pothole detection if category is Road/Road Safety
+      if (displayData.issue?.category?.toLowerCase().includes('road') && uploadedPhotos.length > 0) {
+        try {
+          console.log('🤖 Starting ML analysis for pothole detection...');
+          const firstImage = uploadedPhotos[0].uri;
+          
+          // Analyze first image for pothole detection
+          const analysisResult = await ApiService.analyzeImage(firstImage);
+          
+          if (analysisResult?.data?.analysis) {
+            setMlAnalysis(analysisResult.data.analysis);
+            console.log('✅ ML Analysis complete:', analysisResult.data.analysis);
+            
+            // Display analysis results to user
+            if (analysisResult.data.analysis.detected) {
+              Alert.alert(
+                'Pothole Detected',
+                `ML Analysis detected pothole damage!\n\nConfidence: ${(analysisResult.data.analysis.confidence * 100).toFixed(1)}%\nSeverity: ${analysisResult.data.analysis.severity}\nPriority: ${analysisResult.data.analysis.priority}`,
+                [{ text: 'OK' }]
+              );
+            }
+          }
+        } catch (mlError) {
+          console.error('⚠️ ML Analysis failed (continuing without analysis):', mlError);
+          // Continue without ML analysis - don't block submission
+        }
+      }
       
       // Format the report data for API submission
       let formattedData = formatReportForSubmission(displayData);
+      
+      // Add ML analysis results to the report if available
+      let priority = 'Low'; // Default priority
+      let severity = 'Low'; // Default severity
+      
+      if (mlAnalysis) {
+        priority = mlAnalysis.priority || 'Low';
+        severity = mlAnalysis.severity || 'Low';
+        console.log(`🤖 Setting priority to ${priority} based on ML analysis`);
+      }
+      
       formattedData = {
         ...formattedData,
         reporter: {
@@ -178,7 +218,10 @@ const ReportPreviewScreen: React.FC<ReportPreviewScreenProps> = ({ navigation, r
         },
         issue: {
           ...formattedData.issue,
-          photos: uploadedPhotos // Use uploaded photos instead of local paths
+          photos: uploadedPhotos, // Use uploaded photos instead of local paths
+          ...(priority && { priority: priority }),
+          ...(severity && { severity: severity }),
+          ...(mlAnalysis && { mlAnalysis: mlAnalysis }) // Include full ML analysis results
         }
       };
       

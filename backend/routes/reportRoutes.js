@@ -6,6 +6,7 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 const NotificationService = require('../services/notificationService');
+const mlService = require('../services/mlService');
 
 const router = express.Router();
 
@@ -645,6 +646,44 @@ router.get('/uploads/reports/:filename', (req, res) => {
   
   // Send the file
   res.sendFile(filePath);
+});
+
+// ML Analysis endpoint for image detection
+router.post('/analyze-image', requireAuth, upload.single('image'), async (req, res) => {
+  try {
+    console.log('🤖 ML Analysis request received');
+    
+    if (!req.file) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'No image file provided'
+      });
+    }
+
+    const imagePath = req.file.path;
+    console.log('🤖 Analyzing image:', req.file.filename);
+
+    // Analyze image using ML service
+    const analysisResults = await mlService.analyzeImageForPotholes(imagePath);
+    
+    console.log('🤖 ML Analysis complete:', analysisResults);
+
+    res.status(200).json({
+      status: 'success',
+      message: 'Image analyzed successfully',
+      data: {
+        analysis: analysisResults,
+        filename: req.file.filename,
+        uploadedAt: new Date()
+      }
+    });
+  } catch (error) {
+    console.error('❌ Error analyzing image:', error);
+    res.status(500).json({
+      status: 'error',
+      message: 'Failed to analyze image'
+    });
+  }
 });
 
 module.exports = router;

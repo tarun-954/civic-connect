@@ -348,7 +348,7 @@ export default function DepartmentDashboardScreen({ navigation }: any) {
 
             {/* Second Row */}
             <View style={styles.servicesGrid}>
-              <TouchableOpacity style={styles.serviceItem} onPress={() => Alert.alert('ML Analysis', 'AI-powered pothole analysis and OCR priority detection coming soon!')} activeOpacity={0.9}>
+              <TouchableOpacity style={styles.serviceItem} onPress={() => navigation.navigate('MLAnalysis')} activeOpacity={0.9}>
                 <View style={[styles.serviceIcon, { backgroundColor: '#FFFFFF' }]}>
                   <Image source={require('../images/robotic-arm.gif')} style={{ width: 28, height: 28 }} />
                 </View>
