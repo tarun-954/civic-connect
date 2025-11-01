@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import {
+  SafeAreaView,
   View,
   Text,
   TextInput,
@@ -9,6 +10,8 @@ import {
   StyleSheet,
   TouchableWithoutFeedback,
   Alert,
+  Image,
+  ScrollView,
 } from "react-native";
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { DepartmentService } from '../services/api';
@@ -80,70 +83,86 @@ export default function DepartmentLoginScreen({ navigation }: any) {
   );
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Department Login Portal</Text>
-
-      <View style={styles.card}>
-        {/* Login Type Selection */}
-        <Text style={styles.label}>Login As</Text>
-        <View style={styles.loginTypeContainer}>
-          <TouchableOpacity
-            style={[styles.loginTypeButton, loginType === 'supervisor' && styles.loginTypeButtonActive]}
-            onPress={() => setLoginType('supervisor')}
-          >
-            <Text style={[styles.loginTypeText, loginType === 'supervisor' && styles.loginTypeTextActive]}>
-              Supervisor
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.loginTypeButton, loginType === 'worker' && styles.loginTypeButtonActive]}
-            onPress={() => setLoginType('worker')}
-          >
-            <Text style={[styles.loginTypeText, loginType === 'worker' && styles.loginTypeTextActive]}>
-              Worker
-            </Text>
-          </TouchableOpacity>
+    <SafeAreaView style={styles.container}>
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+      >
+        <View style={styles.header}>
+          <View style={styles.logoContainer}>
+            <Image
+              source={require('../images/logoimage.png')}
+              style={styles.logo}
+              resizeMode="contain"
+            />
+          </View>
+          <Text style={styles.title}>Department Login Portal</Text>
+          <Text style={styles.subtitle}>Enter your credentials to continue</Text>
         </View>
 
-        {/* Department Dropdown */}
-        <Text style={styles.label}>Select Department</Text>
-        <TouchableOpacity
-          style={styles.dropdown}
-          onPress={() => setShowDeptModal(true)}
-        >
-          <Text style={styles.dropdownText}>
-            {department || "Select Department"}
-          </Text>
-        </TouchableOpacity>
+        <View style={styles.card}>
+          {/* Login Type Selection */}
+          <Text style={styles.label}>Login As</Text>
+          <View style={styles.loginTypeContainer}>
+            <TouchableOpacity
+              style={[styles.loginTypeButton, loginType === 'supervisor' && styles.loginTypeButtonActive]}
+              onPress={() => setLoginType('supervisor')}
+            >
+              <Text style={[styles.loginTypeText, loginType === 'supervisor' && styles.loginTypeTextActive]}>
+                Supervisor
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.loginTypeButton, loginType === 'worker' && styles.loginTypeButtonActive]}
+              onPress={() => setLoginType('worker')}
+            >
+              <Text style={[styles.loginTypeText, loginType === 'worker' && styles.loginTypeTextActive]}>
+                Worker
+              </Text>
+            </TouchableOpacity>
+          </View>
 
-        {/* Email */}
-        <Text style={styles.label}>Email / Username</Text>
-        <TextInput
-          style={styles.input}
-          value={email}
-          onChangeText={setEmail}
-          placeholder="Enter your official email"
-        />
+          {/* Department Dropdown */}
+          <Text style={styles.label}>Select Department</Text>
+          <TouchableOpacity
+            style={styles.dropdown}
+            onPress={() => setShowDeptModal(true)}
+          >
+            <Text style={styles.dropdownText}>
+              {department || "Select Department"}
+            </Text>
+          </TouchableOpacity>
 
-        {/* Password */}
-        <Text style={styles.label}>Password</Text>
-        <TextInput
-          style={styles.input}
-          secureTextEntry
-          value={password}
-          onChangeText={setPassword}
-          placeholder="Enter your password"
-        />
+          {/* Email */}
+          <Text style={styles.label}>Email / Username</Text>
+          <TextInput
+            style={styles.input}
+            value={email}
+            onChangeText={setEmail}
+            placeholder="Enter your official email"
+          />
 
-        {/* Login Button */}
-        <TouchableOpacity style={styles.button} onPress={handleLogin}>
-          <Text style={styles.buttonText}>Login</Text>
-        </TouchableOpacity>
+          {/* Password */}
+          <Text style={styles.label}>Password</Text>
+          <TextInput
+            style={styles.input}
+            secureTextEntry
+            value={password}
+            onChangeText={setPassword}
+            placeholder="Enter your password"
+          />
 
-        <TouchableOpacity onPress={() => navigation.navigate('Login')}>
-          <Text style={styles.link}>Back to User Login</Text>
-        </TouchableOpacity>
-      </View>
+          {/* Login Button */}
+          <TouchableOpacity style={styles.button} onPress={handleLogin}>
+            <Text style={styles.buttonText}>Login</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity onPress={() => navigation.navigate('Login')}>
+            <Text style={styles.link}>Back to User Login</Text>
+          </TouchableOpacity>
+        </View>
+      </ScrollView>
 
       {/* Department Modal */}
       <Modal visible={showDeptModal} transparent animationType="fade">
@@ -164,29 +183,52 @@ export default function DepartmentLoginScreen({ navigation }: any) {
           </View>
         </TouchableWithoutFeedback>
       </Modal>
-    </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#F9FAFB",
-    justifyContent: "center",
-    alignItems: "center",
-    padding: 20,
+    backgroundColor: "#FFFFFF",
+  },
+  scrollContent: {
+    paddingHorizontal: 24,
+    paddingBottom: 40,
+  },
+  header: {
+    alignItems: 'center',
+    marginTop: 40,
+    marginBottom: 20,
+  },
+  logoContainer: {
+    width: 120,
+    height: 120,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 32,
+  },
+  logo: {
+    width: 140,
+    height: 140,
   },
   title: {
-    fontSize: 26,
+    fontSize: 28,
     fontWeight: "700",
     color: "#111827",
-    marginBottom: 20,
+    marginBottom: 8,
+  },
+  subtitle: {
+    fontSize: 16,
+    color: "#6B7280",
+    textAlign: "center",
   },
   card: {
     width: "100%",
     backgroundColor: "#fff",
     borderRadius: 20,
     padding: 20,
+    marginBottom: 20,
     shadowColor: "#000",
     shadowOpacity: 0.1,
     shadowOffset: { width: 0, height: 2 },

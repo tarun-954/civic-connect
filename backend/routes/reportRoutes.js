@@ -648,8 +648,8 @@ router.get('/uploads/reports/:filename', (req, res) => {
   res.sendFile(filePath);
 });
 
-// ML Analysis endpoint for image detection
-router.post('/analyze-image', requireAuth, upload.single('image'), async (req, res) => {
+// ML Analysis endpoint for image detection (no auth required for report submission)
+router.post('/analyze-image', upload.single('image'), async (req, res) => {
   try {
     console.log('🤖 ML Analysis request received');
     

@@ -431,11 +431,6 @@ export class ApiService {
   // Analyze image using ML service for pothole detection
   static async analyzeImage(imageUri: string): Promise<any> {
     try {
-      const token = await AsyncStorage.getItem('authToken');
-      if (!token) {
-        throw new Error('No authentication token found');
-      }
-
       const formData = new FormData();
       
       const file = {
@@ -451,8 +446,8 @@ export class ApiService {
       const response = await fetch(`${this.baseURL}/reports/analyze-image`, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${token}`,
-        },
+          'Accept': 'application/json',
+        } as any,
         body: formData,
       });
 

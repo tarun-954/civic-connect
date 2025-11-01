@@ -326,17 +326,17 @@ export default function AnalyticsScreen() {
       datasets: [
         {
           data: seriesSubmitted.datasets[0].data,
-          color: (opacity = 1) => `rgba(59, 130, 246, ${opacity})`,
+          color: (opacity = 1) => `rgba(30, 58, 138, ${opacity})`,
           strokeWidth: 3,
         },
         {
           data: seriesInProgress.datasets[0].data,
-          color: (opacity = 1) => `rgba(245, 158, 11, ${opacity})`,
+          color: (opacity = 1) => `rgba(180, 83, 9, ${opacity})`,
           strokeWidth: 3,
         },
         {
           data: seriesResolved.datasets[0].data,
-          color: (opacity = 1) => `rgba(16, 185, 129, ${opacity})`,
+          color: (opacity = 1) => `rgba(5, 150, 105, ${opacity})`,
           strokeWidth: 3,
         },
       ],
@@ -361,21 +361,21 @@ export default function AnalyticsScreen() {
       {
         name: 'Submitted',
         population: byStatus.submitted,
-        color: '#3B82F6',
+        color: '#1E3A8A',
         legendFontColor: '#7F7F7F',
         legendFontSize: 12,
       },
       {
         name: 'In Progress',
         population: byStatus.in_progress,
-        color: '#F59E0B',
+        color: '#B45309',
         legendFontColor: '#7F7F7F',
         legendFontSize: 12,
       },
       {
         name: 'Resolved',
         population: byStatus.resolved + byStatus.closed,
-        color: '#10B981',
+        color: '#047857',
         legendFontColor: '#7F7F7F',
         legendFontSize: 12,
       },
@@ -393,7 +393,7 @@ export default function AnalyticsScreen() {
     backgroundGradientFrom: '#ffffff',
     backgroundGradientTo: '#ffffff',
     decimalPlaces: 0,
-    color: (opacity = 1) => `rgba(0, 0, 0, ${opacity})`,
+    color: (opacity = 1) => `rgba(30, 58, 138, ${opacity})`,
     labelColor: (opacity = 1) => `rgba(0, 0, 0, ${opacity})`,
     style: {
       borderRadius: 16,
@@ -401,7 +401,7 @@ export default function AnalyticsScreen() {
     propsForDots: {
       r: '2',
       strokeWidth: '2',
-      stroke: '#3B82F6',
+      stroke: '#1E3A8A',
     },
   };
 

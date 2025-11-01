@@ -459,11 +459,11 @@ export default function DepartmentIssuesScreen({ route, navigation }: any) {
           <Text style={styles.loadingText}>Loading issues...</Text>
         </View>
       ) : (
-        <FlatList
-          data={filteredReports}
-          keyExtractor={(item) => item._id}
+      <FlatList
+        data={filteredReports}
+        keyExtractor={(item) => item._id}
           renderItem={renderIssueCard}
-          refreshControl={
+        refreshControl={
             <RefreshControl 
               refreshing={refreshing} 
               onRefresh={onRefresh}

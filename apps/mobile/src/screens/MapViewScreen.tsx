@@ -191,7 +191,7 @@ export default function MapViewScreen() {
             <Feather name="x" size={18} color="#666" />
           </TouchableOpacity>
         )}
-      </View>
+        </View>
 
       {/* Google Map */}
         <MapView
