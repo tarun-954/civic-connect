@@ -191,6 +191,17 @@ export default function MapViewScreen() {
             <Feather name="x" size={18} color="#666" />
           </TouchableOpacity>
         )}
+        <TouchableOpacity 
+          onPress={loadReports} 
+          style={styles.refreshButton}
+          disabled={loading}
+        >
+          {loading ? (
+            <ActivityIndicator size="small" color="#3B82F6" />
+          ) : (
+            <Feather name="refresh-cw" size={20} color="#3B82F6" />
+          )}
+        </TouchableOpacity>
         </View>
 
       {/* Google Map */}
@@ -369,6 +380,22 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     elevation: 2,
+  },
+  refreshButton: {
+    marginLeft: 8,
+    backgroundColor: '#fff',
+    borderRadius: 15,
+    width: 40,
+    height: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+    elevation: 3,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
   },
 
   customMarker: {

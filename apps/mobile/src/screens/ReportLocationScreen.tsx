@@ -21,6 +21,7 @@ export default function ReportLocationScreen({ navigation, route }: any) {
   const { reportData } = route.params || {};
   const [location, setLocation] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [isManualMode, setIsManualMode] = useState(false);
   const [region, setRegion] = useState({
     latitude: 28.6139, // Default: Delhi
     longitude: 77.2090,
@@ -72,6 +73,36 @@ export default function ReportLocationScreen({ navigation, route }: any) {
       setIsLoading(false);
       Alert.alert("Error", "Unable to get location. Try again.");
     }
+  };
+
+  const handleMapPress = (event: any) => {
+    if (isManualMode) {
+      const { latitude, longitude } = event.nativeEvent.coordinate;
+      const manualLocation = {
+        latitude,
+        longitude,
+        accuracy: 10, // Manual selection has better accuracy
+        isManual: true,
+      };
+      setLocation(manualLocation);
+      setRegion({
+        latitude,
+        longitude,
+        latitudeDelta: 0.01,
+        longitudeDelta: 0.01,
+      });
+      setMapKey(prev => prev + 1);
+    }
+  };
+
+  const enableManualMode = () => {
+    setIsManualMode(true);
+    setLocation(null); // Clear previous location
+    Alert.alert(
+      "Pin Location Mode 📍",
+      "Tap anywhere on the map to mark the issue location. This is useful when you're reporting from home.",
+      [{ text: "Got it!" }]
+    );
   };
 
   return (
@@ -128,9 +159,9 @@ export default function ReportLocationScreen({ navigation, route }: any) {
         {/* Get Location Button */}
         <View style={styles.buttonContainer}>
           <TouchableOpacity
-            style={[styles.btn, isLoading && { opacity: 0.7 }]}
+            style={[styles.btn, (isLoading || isManualMode) && { opacity: 0.7 }]}
             onPress={getCurrentLocation}
-            disabled={isLoading}
+            disabled={isLoading || isManualMode}
           >
             {isLoading ? (
               <>
@@ -140,6 +171,33 @@ export default function ReportLocationScreen({ navigation, route }: any) {
             ) : (
               <Text style={styles.btnText}>📍 Get My Location</Text>
             )}
+          </TouchableOpacity>
+        </View>
+
+        {/* OR Divider */}
+        <View style={styles.orContainer}>
+          <View style={styles.orLine} />
+          <Text style={styles.orText}>OR</Text>
+          <View style={styles.orLine} />
+        </View>
+
+        {/* Manual Pin Location Section */}
+        <View style={styles.buttonContainer}>
+          <Text style={styles.manualTitle}>
+            {isManualMode ? "Tap on Map to Pin Location" : "Pin Location Manually"}
+          </Text>
+          <Text style={styles.manualDescription}>
+            {isManualMode 
+              ? "Tap anywhere on the map below to mark where the issue is located"
+              : "If you're at home or away from the issue, you can manually select the location on the map"}
+          </Text>
+          <TouchableOpacity
+            style={[styles.btnSecondary, isManualMode && styles.btnSecondaryActive]}
+            onPress={enableManualMode}
+          >
+            <Text style={[styles.btnSecondaryText, isManualMode && styles.btnSecondaryTextActive]}>
+              {isManualMode ? "📍 Tap Map to Select Location" : "📌 Pin Location on Map"}
+            </Text>
           </TouchableOpacity>
         </View>
 
@@ -157,20 +215,36 @@ export default function ReportLocationScreen({ navigation, route }: any) {
                 longitudeDelta: 0.01,
               } : region}
               mapType="standard"
+              onPress={handleMapPress}
             >
               {(location ? [location] : []).map((loc, i) => (
                 <Marker
                   key={`loc-${i}`}
                   coordinate={{ latitude: loc.latitude, longitude: loc.longitude }}
-                  title="📍 Your Current Location"
-                  description={`Accuracy: ±${Math.round((loc as any).accuracy || 50)}m`}
-                  pinColor="#3B82F6"
+                  title={loc.isManual ? "📍 Issue Location" : "📍 Your Current Location"}
+                  description={loc.isManual 
+                    ? "Manually selected location" 
+                    : `Accuracy: ±${Math.round((loc as any).accuracy || 50)}m`}
+                  pinColor={loc.isManual ? "#10B981" : "#3B82F6"}
                 />
               ))}
             </MapView>
+            {isManualMode && !location && (
+              <View style={styles.manualHint}>
+                <Text style={styles.manualHintText}>
+                  👆 Tap on the map to select the issue location
+                </Text>
+              </View>
+            )}
           </View>
           <Text style={styles.mapInfo}>
-            {location ? "📍 Your location is marked on the map" : "🗺️ Tap 'Get My Location' to mark your position"}
+            {location 
+              ? (location.isManual 
+                  ? "📍 Issue location pinned on map" 
+                  : "📍 Your location is marked on the map")
+              : isManualMode
+              ? "🗺️ Tap anywhere on the map to mark the issue location"
+              : "🗺️ Use 'Get My Location' or 'Pin Location on Map' to mark position"}
           </Text>
         </View>
         </View>
@@ -350,6 +424,72 @@ const styles = StyleSheet.create({
     textAlign: "center",
     fontSize: 12,
     color: "#6b7280",
+  },
+  orContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 20,
+    marginVertical: 20,
+  },
+  orLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: "#e2e8f0",
+  },
+  orText: {
+    paddingHorizontal: 16,
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#6b7280",
+  },
+  manualTitle: {
+    fontSize: 16,
+    fontWeight: "600",
+    textAlign: "center",
+    marginBottom: 8,
+    color: "#111827",
+  },
+  manualDescription: {
+    fontSize: 13,
+    color: "#6b7280",
+    textAlign: "center",
+    marginBottom: 16,
+    lineHeight: 18,
+  },
+  btnSecondary: {
+    backgroundColor: "#f8fafc",
+    padding: 16,
+    borderRadius: 12,
+    alignItems: "center",
+    borderWidth: 2,
+    borderColor: "#e2e8f0",
+  },
+  btnSecondaryActive: {
+    backgroundColor: "#ECFDF5",
+    borderColor: "#10B981",
+  },
+  btnSecondaryText: {
+    color: "#475569",
+    fontWeight: "600",
+    fontSize: 16,
+  },
+  btnSecondaryTextActive: {
+    color: "#10B981",
+  },
+  manualHint: {
+    position: "absolute",
+    top: 10,
+    left: 10,
+    right: 10,
+    backgroundColor: "rgba(16, 185, 129, 0.9)",
+    padding: 12,
+    borderRadius: 8,
+    alignItems: "center",
+  },
+  manualHintText: {
+    color: "#fff",
+    fontWeight: "600",
+    fontSize: 14,
   },
   actions: {
     flexDirection: "row",

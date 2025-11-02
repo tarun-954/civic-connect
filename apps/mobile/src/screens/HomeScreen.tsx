@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import { SafeAreaView, View, Text, StyleSheet, Image, TouchableOpacity, FlatList, Dimensions, TextInput, ScrollView, ActivityIndicator } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { ApiService, NotificationApiService, DepartmentService } from '../services/api';
@@ -122,6 +122,38 @@ export default function HomeScreen({ navigation }: any) {
   // Get display name from auth context
   const displayName = user?.name || (user?.email ? user.email.split('@')[0] : 'Citizen');
 
+  // Memoized render function for officials carousel
+  const renderOfficialCard = useCallback(({ item }: { item: any }) => {
+    const cardWidth = (width - 40) / 2;
+    return (
+      <View style={[styles.officialCard, { width: cardWidth }]}>
+        <View style={styles.officialImageContainer}>
+          {item.imageUrl ? (
+            <Image 
+              source={{ uri: item.imageUrl }} 
+              style={styles.officialImage}
+              resizeMode="cover"
+              defaultSource={require('../images/logoimage.png')}
+            />
+          ) : (
+          <View style={styles.officialImagePlaceholder}>
+            <Feather name="user" size={32} color="#9CA3AF" />
+          </View>
+          )}
+        </View>
+        <Text style={styles.officialName} numberOfLines={1}>{item.name}</Text>
+        <Text style={styles.officialDesignation} numberOfLines={2}>
+          {item.designation || (item.role === 'supervisor' ? 'Supervisor' : 'Field Worker')}
+        </Text>
+        <Text style={styles.officialDepartment} numberOfLines={1}>{item.department}</Text>
+        <View style={styles.officialContact}>
+          <Feather name="phone" size={14} color="#6B7280" />
+          <Text style={styles.officialPhone} numberOfLines={1}>{item.phone}</Text>
+        </View>
+      </View>
+    );
+  }, [width]);
+
   // Fetch department officials
   useEffect(() => {
     const fetchOfficials = async () => {
@@ -148,72 +180,57 @@ export default function HomeScreen({ navigation }: any) {
     fetchOfficials();
   }, []);
 
-  // Continuous scroll animation (train-like movement)
+  // Optimized continuous scroll animation (train-like movement)
   useEffect(() => {
     if (officials.length === 0) return;
     
     const cardWidth = (width - 40) / 2;
-    const scrollDistance = cardWidth + 8; // card width + margin
-    const originalOfficialsCount = officials.length / 3; // We duplicated 3 times
+    const scrollDistance = cardWidth + 8;
+    const originalOfficialsCount = officials.length / 3;
     const sectionSize = originalOfficialsCount * scrollDistance;
     
     let intervalId: ReturnType<typeof setInterval> | null = null;
-    let currentOffset = 16; // Start at padding position
-    const speed = 0.5; // pixels per 16ms (adjust for speed: higher = faster, ~30 pixels/second)
-    let lastUpdateTime = Date.now();
+    let currentOffset = 16;
+    const speed = 1.5; // pixels per frame (slightly faster, smoother)
     let isRunning = true;
     
-    // Use setInterval for more reliable continuous scrolling
+    // Optimized: Use longer interval (50ms instead of 16ms) for better performance
+    // This reduces CPU usage significantly while still appearing smooth
     const startAnimation = () => {
       if (!officialsListRef.current) {
-        // Retry after a short delay if ref is not ready
-        setTimeout(startAnimation, 100);
+        setTimeout(startAnimation, 200);
         return;
       }
       
       intervalId = setInterval(() => {
         if (!isRunning || !officialsListRef.current) return;
         
+        // Simplified calculation - no time-based adjustments needed
+        currentOffset += speed;
+        
+        // Reset when reaching end
+        if (currentOffset >= sectionSize) {
+          currentOffset = 16;
+        }
+        
+        // Scroll directly without extra validation
         try {
-          const now = Date.now();
-          const deltaTime = now - lastUpdateTime;
-          lastUpdateTime = now;
-          
-          // Time-based movement for consistent speed regardless of frame rate
-          const timeBasedSpeed = speed * (deltaTime / 16); // Normalize to 60fps
-          currentOffset += timeBasedSpeed;
-          
-          // When we reach the end of the first section, reset to start (seamless loop)
-          if (currentOffset >= sectionSize) {
-            currentOffset = 16; // Reset to start with padding
-          }
-          
-          // Ensure offset is valid
-          const targetOffset = Math.max(0, Math.min(currentOffset, sectionSize));
-          
-          // Scroll with error handling
-          try {
-            officialsListRef.current.scrollToOffset({
-              offset: targetOffset,
-              animated: false, // No animation for smooth continuous scroll
-            });
-          } catch (scrollError) {
-            // If scroll fails, try to recover by resetting offset
-            console.warn('Scroll error, resetting:', scrollError);
+          officialsListRef.current.scrollToOffset({
+            offset: currentOffset,
+            animated: false,
+          });
+        } catch (scrollError) {
+          // Silent error handling
+          if (isRunning) {
             currentOffset = 16;
           }
-        } catch (error) {
-          // Continue on error - animation will recover
-          console.warn('Animation error (continuing):', error);
         }
-      }, 16); // ~60fps for smooth animation
+      }, 50); // 20fps - much smoother and less CPU intensive
     };
     
-    // Start animation after FlatList has rendered
     const timeoutId = setTimeout(() => {
-      lastUpdateTime = Date.now();
       startAnimation();
-    }, 400);
+    }, 500);
     
     return () => {
       isRunning = false;
@@ -411,33 +428,21 @@ marginLeft :20,
             pagingEnabled={false}
             showsHorizontalScrollIndicator={false}
             scrollEnabled={false}
+            removeClippedSubviews={true}
+            initialNumToRender={4}
+            maxToRenderPerBatch={4}
+            windowSize={5}
+            getItemLayout={(data, index) => {
+              const cardWidth = (width - 40) / 2;
+              return {
+                length: cardWidth + 8,
+                offset: (cardWidth + 8) * index,
+                index,
+              };
+            }}
             contentContainerStyle={styles.officialsScroll}
             onScrollToIndexFailed={() => {}}
-            renderItem={({ item }) => {
-              const cardWidth = (width - 40) / 2;
-              return (
-                <View style={[styles.officialCard, { width: cardWidth }]}>
-                  <View style={styles.officialImageContainer}>
-                    {item.imageUrl ? (
-                      <Image source={{ uri: item.imageUrl }} style={styles.officialImage} />
-                    ) : (
-                    <View style={styles.officialImagePlaceholder}>
-                      <Feather name="user" size={32} color="#9CA3AF" />
-                    </View>
-                    )}
-                  </View>
-                  <Text style={styles.officialName} numberOfLines={1}>{item.name}</Text>
-                  <Text style={styles.officialDesignation} numberOfLines={2}>
-                    {item.designation || (item.role === 'supervisor' ? 'Supervisor' : 'Field Worker')}
-                  </Text>
-                  <Text style={styles.officialDepartment} numberOfLines={1}>{item.department}</Text>
-                  <View style={styles.officialContact}>
-                    <Feather name="phone" size={14} color="#6B7280" />
-                    <Text style={styles.officialPhone} numberOfLines={1}>{item.phone}</Text>
-                  </View>
-                </View>
-              );
-            }}
+            renderItem={renderOfficialCard}
           />
         ) : (
           <View style={styles.officialsEmpty}>

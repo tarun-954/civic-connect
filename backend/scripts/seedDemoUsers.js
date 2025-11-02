@@ -5,34 +5,29 @@ const User = require('../models/User');
 const Department = require('../models/Department');
 
 // Helper function to get random Indian avatar images
-// Using diverse portrait images from randomuser.me for variety
+// Using direct image URLs from Unsplash and Pexels featuring Indian/Hindi people
 const getRandomIndianAvatar = (index) => {
-  // Array of diverse portrait URLs - mixing men and women for variety
-  // These provide realistic, diverse faces that will work well for Indian officials
-  const avatarUrls = [
-    'https://randomuser.me/api/portraits/men/32.jpg',
-    'https://randomuser.me/api/portraits/women/44.jpg',
-    'https://randomuser.me/api/portraits/men/68.jpg',
-    'https://randomuser.me/api/portraits/women/65.jpg',
-    'https://randomuser.me/api/portraits/men/75.jpg',
-    'https://randomuser.me/api/portraits/women/47.jpg',
-    'https://randomuser.me/api/portraits/men/57.jpg',
-    'https://randomuser.me/api/portraits/women/38.jpg',
-    'https://randomuser.me/api/portraits/men/29.jpg',
-    'https://randomuser.me/api/portraits/women/50.jpg',
-    'https://randomuser.me/api/portraits/men/63.jpg',
-    'https://randomuser.me/api/portraits/women/28.jpg',
-    'https://randomuser.me/api/portraits/men/52.jpg',
-    'https://randomuser.me/api/portraits/women/41.jpg',
-    'https://randomuser.me/api/portraits/men/71.jpg',
-    'https://randomuser.me/api/portraits/women/55.jpg',
-    'https://randomuser.me/api/portraits/men/45.jpg',
-    'https://randomuser.me/api/portraits/women/33.jpg',
-    'https://randomuser.me/api/portraits/men/22.jpg',
-    'https://randomuser.me/api/portraits/women/61.jpg',
-  ];
+  // Array of direct image URLs featuring Indian/Hindi people
+  // These are professional portrait photos of Indian people from free stock photo services
+  const indianAvatarUrls = [
+    'https://images.pexels.com/photos/4307869/pexels-photo-4307869.jpeg',
+    'https://images.pexels.com/photos/2753381/pexels-photo-2753381.jpeg',
+    'https://images.pexels.com/photos/7580649/pexels-photo-7580649.jpeg', 
+    'https://images.pexels.com/photos/7580813/pexels-photo-7580813.jpeg', //4
+   'https://images.pexels.com/photos/7580761/pexels-photo-7580761.jpeg',//5
+    'https://images.pexels.com/photos/7580918/pexels-photo-7580918.jpeg',//6
+  'https://images.pexels.com/photos/7580821/pexels-photo-7580821.jpeg',//7
+  'https://images.pexels.com/photos/15498251/pexels-photo-15498251.jpeg',
+  'https://images.pexels.com/photos/1036622/pexels-photo-1036622.jpeg',
+  'https://images.pexels.com/photos/2381069/pexels-photo-2381069.jpeg', 
+  'https://images.pexels.com/photos/7580967/pexels-photo-7580967.jpeg',
+    'https://images.pexels.com/photos/29028778/pexels-photo-29028778.jpeg',
+    'https://images.pexels.com/photos/4307869/pexels-photo-4307869.jpeg',
+    'https://images.pexels.com/photos/1036622/pexels-photo-1036622.jpeg',
+    'https://images.pexels.com/photos/29028778/pexels-photo-29028778.jpeg',
+];
   // Cycle through the array to assign different images to each official
-  return avatarUrls[index % avatarUrls.length];
+  return indianAvatarUrls[index % indianAvatarUrls.length];
 };
 
 // Demo users for each department with Indian names and phone numbers
