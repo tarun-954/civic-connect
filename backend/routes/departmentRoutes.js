@@ -142,6 +142,28 @@ router.post('/ml/ocr-priority', requireDepartment, async (req, res) => {
   return res.status(200).json({ status: 'success', data: { text: 'DANGER HIGH VOLTAGE', priority: 'urgent', confidence: 0.9 } });
 });
 
+// Get department officials (public endpoint for carousel)
+router.get('/officials', async (req, res) => {
+  try {
+    const User = require('../models/User');
+    const officials = await User.find({ 
+      role: { $in: ['supervisor', 'worker'] },
+      department: { $ne: null }
+    })
+    .select('name email phone department role designation imageUrl')
+    .sort({ role: -1, name: 1 }) // supervisors first
+    .limit(20); // limit to 20 officials
+    
+    res.status(200).json({ 
+      status: 'success', 
+      data: { officials } 
+    });
+  } catch (e) {
+    console.error('Error fetching officials:', e);
+    res.status(500).json({ status: 'error', message: 'Failed to fetch officials' });
+  }
+});
+
 module.exports = router;
 
 

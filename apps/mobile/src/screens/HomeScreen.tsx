@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { SafeAreaView, View, Text, StyleSheet, Image, TouchableOpacity, FlatList, Dimensions, TextInput, ScrollView } from 'react-native';
+import { SafeAreaView, View, Text, StyleSheet, Image, TouchableOpacity, FlatList, Dimensions, TextInput, ScrollView, ActivityIndicator } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import { ApiService, NotificationApiService } from '../services/api';
+import { ApiService, NotificationApiService, DepartmentService } from '../services/api';
 // Try to import Lottie, fallback to null if not available
 let LottieView: any = null;
 try {
@@ -72,6 +72,10 @@ export default function HomeScreen({ navigation }: any) {
   const [isSearching, setIsSearching] = useState(false);
   const [query, setQuery] = useState('');
   const [unreadCount, setUnreadCount] = useState(0);
+  const [officials, setOfficials] = useState<any[]>([]);
+  const [loadingOfficials, setLoadingOfficials] = useState(false);
+  const officialsListRef = useRef<FlatList>(null);
+  const [officialsIndex, setOfficialsIndex] = useState(0);
 
   useEffect(() => {
     const updateNow = () => {
@@ -118,6 +122,35 @@ export default function HomeScreen({ navigation }: any) {
 
   // Get display name from auth context
   const displayName = user?.name || (user?.email ? user.email.split('@')[0] : 'Citizen');
+
+  // Fetch department officials
+  useEffect(() => {
+    const fetchOfficials = async () => {
+      setLoadingOfficials(true);
+      try {
+        const response = await DepartmentService.getOfficials();
+        if (response.status === 'success' && response.data.officials) {
+          setOfficials(response.data.officials);
+        }
+      } catch (error) {
+        console.error('Error fetching officials:', error);
+      } finally {
+        setLoadingOfficials(false);
+      }
+    };
+    fetchOfficials();
+  }, []);
+
+  // Auto-scroll officials carousel
+  useEffect(() => {
+    if (officials.length === 0) return;
+    const id = setInterval(() => {
+      const next = (officialsIndex + 1) % officials.length;
+      officialsListRef.current?.scrollToIndex({ index: next, animated: true });
+      setOfficialsIndex(next);
+    }, 5000);
+    return () => clearInterval(id);
+  }, [officialsIndex, officials.length]);
 
 
   return (
@@ -289,6 +322,57 @@ marginLeft :20,
   />
 </View>
 </View>
+
+      {/* Government Officials Carousel */}
+      <View style={styles.officialsContainer}>
+        <Text style={styles.officialsTitle}>Our Government Officials</Text>
+        {loadingOfficials ? (
+          <View style={styles.officialsLoading}>
+            <ActivityIndicator size="small" color="#10B981" />
+          </View>
+        ) : officials.length > 0 ? (
+          <FlatList
+            ref={officialsListRef}
+            data={officials}
+            keyExtractor={(item, index) => item._id || index.toString()}
+            horizontal
+            pagingEnabled
+            showsHorizontalScrollIndicator={false}
+            onScrollToIndexFailed={() => {}}
+            onMomentumScrollEnd={(event) => {
+              const index = Math.round(event.nativeEvent.contentOffset.x / (width - 32));
+              setOfficialsIndex(index);
+            }}
+            renderItem={({ item }) => (
+              <View style={[styles.officialCard, { width: width - 32 }]}>
+                <View style={styles.officialImageContainer}>
+                  {item.imageUrl ? (
+                    <Image source={{ uri: item.imageUrl }} style={styles.officialImage} />
+                  ) : (
+                    <View style={styles.officialImagePlaceholder}>
+                      <Feather name="user" size={40} color="#9CA3AF" />
+                    </View>
+                  )}
+                </View>
+                <Text style={styles.officialName}>{item.name}</Text>
+                <Text style={styles.officialDesignation}>
+                  {item.designation || (item.role === 'supervisor' ? 'Supervisor' : 'Field Worker')}
+                </Text>
+                <Text style={styles.officialDepartment}>{item.department}</Text>
+                <View style={styles.officialContact}>
+                  <Feather name="phone" size={14} color="#6B7280" />
+                  <Text style={styles.officialPhone}>{item.phone}</Text>
+                </View>
+              </View>
+            )}
+            contentContainerStyle={styles.officialsScroll}
+          />
+        ) : (
+          <View style={styles.officialsEmpty}>
+            <Text style={styles.officialsEmptyText}>No officials available</Text>
+          </View>
+        )}
+      </View>
       
 
       </ScrollView>
@@ -644,5 +728,97 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     textAlign: 'center'
+  },
+  officialsContainer: {
+    marginTop: 24,
+    paddingHorizontal: 16,
+    marginBottom: 20
+  },
+  officialsTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: '#111827',
+    marginBottom: 16
+  },
+  officialsLoading: {
+    height: 200,
+    justifyContent: 'center',
+    alignItems: 'center'
+  },
+  officialsScroll: {
+    paddingBottom: 4
+  },
+  officialCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 20,
+    marginRight: 12,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 3.84,
+    elevation: 5,
+    borderWidth: 1,
+    borderColor: '#E5E7EB'
+  },
+  officialImageContainer: {
+    marginBottom: 16
+  },
+  officialImage: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    backgroundColor: '#F3F4F6'
+  },
+  officialImagePlaceholder: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    backgroundColor: '#F3F4F6',
+    justifyContent: 'center',
+    alignItems: 'center'
+  },
+  officialName: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#111827',
+    marginBottom: 6,
+    textAlign: 'center'
+  },
+  officialDesignation: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#10B981',
+    marginBottom: 4,
+    textAlign: 'center'
+  },
+  officialDepartment: {
+    fontSize: 12,
+    color: '#6B7280',
+    marginBottom: 12,
+    textAlign: 'center'
+  },
+  officialContact: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+  officialPhone: {
+    fontSize: 12,
+    color: '#6B7280',
+    marginLeft: 6
+  },
+  officialsEmpty: {
+    height: 100,
+    justifyContent: 'center',
+    alignItems: 'center'
+  },
+  officialsEmptyText: {
+    fontSize: 14,
+    color: '#9CA3AF'
   },
 });

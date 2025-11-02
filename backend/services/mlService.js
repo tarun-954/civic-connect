@@ -53,7 +53,8 @@ async function analyzeImageForPotholes(imagePath) {
       const pythonAvailable = await checkPythonAvailability();
       
       if (!pythonAvailable) {
-        console.log('⚠️ Python not available, using Node.js image analysis');
+        console.log('⚠️ Python not available, using MOCK Node.js image analysis');
+        console.log('⚠️ Note: This is NOT real ML detection - just file size based guessing');
         const result = nodeAnalyzeImage(imagePath);
         return resolve(result);
       }
@@ -62,7 +63,8 @@ async function analyzeImageForPotholes(imagePath) {
       const mlServicePath = path.join(__dirname, '..', 'ml', 'service.py');
       
       if (!fs.existsSync(mlServicePath)) {
-        console.log('⚠️ ML service not found, using Node.js image analysis');
+        console.log('⚠️ ML service not found, using MOCK Node.js image analysis');
+        console.log('⚠️ Note: This is NOT real ML detection - just file size based guessing');
         const result = nodeAnalyzeImage(imagePath);
         return resolve(result);
       }
@@ -93,6 +95,7 @@ async function analyzeImageForPotholes(imagePath) {
       }
       
       console.log(`🐍 Using Python command: ${pythonCommand}`);
+      console.log('🔬 Starting REAL ML Analysis (Python/OpenCV)...');
       
       // Call Python ML service
       const command = pythonCommand.split(' ');
@@ -118,26 +121,32 @@ async function analyzeImageForPotholes(imagePath) {
           try {
             // Try to parse JSON output if available
             const result = JSON.parse(output);
+            console.log('✅ REAL ML Analysis (Python/OpenCV) completed successfully');
             resolve(result);
           } catch (e) {
+            console.log('⚠️ Failed to parse Python output, using fallback analysis');
             // Fallback to simple analysis
             resolve(simpleDetectionAnalysis(imagePath, output));
           }
         } else {
-          console.log('⚠️ Python ML service error, using Node.js analysis:', error);
+          console.log('⚠️ Python ML service error, using MOCK Node.js analysis:', error);
+          console.log('⚠️ Note: This is NOT real ML detection - just file size based guessing');
           const result = nodeAnalyzeImage(imagePath);
           resolve(result);
         }
       });
 
       python.on('error', (err) => {
-        console.log('⚠️ Failed to spawn Python, using Node.js analysis:', err.message);
+        console.log('⚠️ Failed to spawn Python, using MOCK Node.js analysis:', err.message);
+        console.log('⚠️ Note: This is NOT real ML detection - just file size based guessing');
         const result = nodeAnalyzeImage(imagePath);
         resolve(result);
       });
 
     } catch (error) {
       console.error('❌ Error in ML analysis:', error);
+      console.log('⚠️ Using MOCK Node.js analysis as fallback');
+      console.log('⚠️ Note: This is NOT real ML detection - just file size based guessing');
       const result = nodeAnalyzeImage(imagePath);
       resolve(result);
     }

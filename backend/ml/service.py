@@ -4,6 +4,8 @@ Uses a pre-trained model to detect and analyze potholes
 """
 
 import os
+import sys
+import json
 import cv2
 import numpy as np
 from PIL import Image
@@ -13,7 +15,7 @@ import base64
 import logging
 
 # Configure logging
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.ERROR)  # Reduce logging to only errors
 logger = logging.getLogger(__name__)
 
 class PotholeDetector:
@@ -183,9 +185,43 @@ def analyze_image_for_potholes(image_path):
 
 
 if __name__ == '__main__':
-    # Test the detector
-    detector = PotholeDetector()
-    # This would be used for testing with actual images
-    print("Pothole Detection Service initialized")
+    # Handle command-line arguments
+    if len(sys.argv) >= 3 and sys.argv[1] == '--analyze':
+        image_path = sys.argv[2]
+        
+        if not os.path.exists(image_path):
+            result = {
+                'detected': False,
+                'confidence': 0.0,
+                'severity': 'Low',
+                'priority': 'Low',
+                'num_detections': 0,
+                'total_area': 0,
+                'recommendation': f'Image file not found: {image_path}'
+            }
+            print(json.dumps(result))
+            sys.exit(1)
+        
+        try:
+            detector = PotholeDetector()
+            result = detector.detect_potholes(image_path)
+            # Output JSON for Node.js to parse
+            print(json.dumps(result))
+        except Exception as e:
+            result = {
+                'detected': False,
+                'confidence': 0.0,
+                'severity': 'Low',
+                'priority': 'Low',
+                'num_detections': 0,
+                'total_area': 0,
+                'recommendation': f'Error during analysis: {str(e)}'
+            }
+            print(json.dumps(result))
+            sys.exit(1)
+    else:
+        # Just initialize for testing
+        detector = PotholeDetector()
+        print("Pothole Detection Service initialized")
 
 

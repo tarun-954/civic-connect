@@ -607,6 +607,21 @@ export class DepartmentService {
     }
   }
 
+  // Get department officials (public endpoint, no auth required)
+  static async getOfficials(): Promise<any> {
+    try {
+      const response = await fetch(`${this.baseURL}/departments/officials`);
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result.message || 'Failed to fetch officials');
+      }
+      return result;
+    } catch (error) {
+      console.error('Error fetching officials:', error);
+      throw error;
+    }
+  }
+
   static async getNotifications(): Promise<any> {
     try {
       const token = await AsyncStorage.getItem('deptToken');

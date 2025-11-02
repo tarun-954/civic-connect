@@ -34,6 +34,14 @@ const userSchema = new mongoose.Schema({
     enum: ['citizen', 'supervisor', 'worker'],
     default: 'citizen'
   },
+  designation: {
+    type: String,
+    default: null
+  },
+  imageUrl: {
+    type: String,
+    default: null
+  },
   // Notifications array
   notifications: [{
     type: { 
