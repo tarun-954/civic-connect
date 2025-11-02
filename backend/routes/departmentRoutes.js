@@ -154,13 +154,19 @@ router.get('/officials', async (req, res) => {
     .sort({ role: -1, name: 1 }) // supervisors first
     .limit(20); // limit to 20 officials
     
+    console.log(`📊 Found ${officials.length} officials in database`);
+    
     res.status(200).json({ 
       status: 'success', 
-      data: { officials } 
+      data: { officials: officials || [] } 
     });
   } catch (e) {
     console.error('Error fetching officials:', e);
-    res.status(500).json({ status: 'error', message: 'Failed to fetch officials' });
+    res.status(500).json({ 
+      status: 'error', 
+      message: 'Failed to fetch officials',
+      data: { officials: [] }
+    });
   }
 });
 

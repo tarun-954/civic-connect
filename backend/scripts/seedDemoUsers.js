@@ -1,188 +1,260 @@
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
+require('dotenv').config({ path: './.env' });
 const User = require('../models/User');
 const Department = require('../models/Department');
 
-// Demo users for each department
+// Helper function to get random Indian avatar images
+// Using diverse portrait images from randomuser.me for variety
+const getRandomIndianAvatar = (index) => {
+  // Array of diverse portrait URLs - mixing men and women for variety
+  // These provide realistic, diverse faces that will work well for Indian officials
+  const avatarUrls = [
+    'https://randomuser.me/api/portraits/men/32.jpg',
+    'https://randomuser.me/api/portraits/women/44.jpg',
+    'https://randomuser.me/api/portraits/men/68.jpg',
+    'https://randomuser.me/api/portraits/women/65.jpg',
+    'https://randomuser.me/api/portraits/men/75.jpg',
+    'https://randomuser.me/api/portraits/women/47.jpg',
+    'https://randomuser.me/api/portraits/men/57.jpg',
+    'https://randomuser.me/api/portraits/women/38.jpg',
+    'https://randomuser.me/api/portraits/men/29.jpg',
+    'https://randomuser.me/api/portraits/women/50.jpg',
+    'https://randomuser.me/api/portraits/men/63.jpg',
+    'https://randomuser.me/api/portraits/women/28.jpg',
+    'https://randomuser.me/api/portraits/men/52.jpg',
+    'https://randomuser.me/api/portraits/women/41.jpg',
+    'https://randomuser.me/api/portraits/men/71.jpg',
+    'https://randomuser.me/api/portraits/women/55.jpg',
+    'https://randomuser.me/api/portraits/men/45.jpg',
+    'https://randomuser.me/api/portraits/women/33.jpg',
+    'https://randomuser.me/api/portraits/men/22.jpg',
+    'https://randomuser.me/api/portraits/women/61.jpg',
+  ];
+  // Cycle through the array to assign different images to each official
+  return avatarUrls[index % avatarUrls.length];
+};
+
+// Demo users for each department with Indian names and phone numbers
 const demoUsers = [
   // Road Department
   {
-    name: 'John Smith',
-    email: 'john.smith@roaddepartment.gov',
-    phone: '+1234567890',
+    name: 'Rajesh Kumar',
+    email: 'rajesh.kumar@roaddepartment.gov',
+    phone: '+91 98765 43210',
     password: 'password123',
     department: 'ROAD',
-    role: 'supervisor'
+    role: 'supervisor',
+    designation: 'Senior Road Engineer',
+    imageUrl: getRandomIndianAvatar(0)
   },
   {
-    name: 'Mike Johnson',
-    email: 'mike.johnson@roaddepartment.gov',
-    phone: '+1234567891',
+    name: 'Vikram Singh',
+    email: 'vikram.singh@roaddepartment.gov',
+    phone: '+91 98765 43211',
     password: 'password123',
     department: 'ROAD',
-    role: 'worker'
+    role: 'worker',
+    designation: 'Road Maintenance Worker',
+    imageUrl: getRandomIndianAvatar(1)
   },
   
   // Electricity Department
   {
-    name: 'Sarah Wilson',
-    email: 'sarah.wilson@electricity.gov',
-    phone: '+1234567892',
+    name: 'Priya Sharma',
+    email: 'priya.sharma@electricity.gov',
+    phone: '+91 98765 43212',
     password: 'password123',
     department: 'ELEC',
-    role: 'supervisor'
+    role: 'supervisor',
+    designation: 'Electrical Supervisor',
+    imageUrl: getRandomIndianAvatar(2)
   },
   {
-    name: 'David Brown',
-    email: 'david.brown@electricity.gov',
-    phone: '+1234567893',
+    name: 'Amit Patel',
+    email: 'amit.patel@electricity.gov',
+    phone: '+91 98765 43213',
     password: 'password123',
     department: 'ELEC',
-    role: 'worker'
+    role: 'worker',
+    designation: 'Electrician',
+    imageUrl: getRandomIndianAvatar(3)
   },
   
   // Water Department
   {
-    name: 'Lisa Davis',
-    email: 'lisa.davis@water.gov',
-    phone: '+1234567894',
+    name: 'Suresh Reddy',
+    email: 'suresh.reddy@water.gov',
+    phone: '+91 98765 43214',
     password: 'password123',
     department: 'WATER',
-    role: 'supervisor'
+    role: 'supervisor',
+    designation: 'Water Supply Manager',
+    imageUrl: getRandomIndianAvatar(4)
   },
   {
-    name: 'Tom Wilson',
-    email: 'tom.wilson@water.gov',
-    phone: '+1234567895',
+    name: 'Kiran Desai',
+    email: 'kiran.desai@water.gov',
+    phone: '+91 98765 43215',
     password: 'password123',
     department: 'WATER',
-    role: 'worker'
+    role: 'worker',
+    designation: 'Water Technician',
+    imageUrl: getRandomIndianAvatar(5)
   },
   
   // Sanitation Department
   {
-    name: 'Emma Garcia',
-    email: 'emma.garcia@sanitation.gov',
-    phone: '+1234567896',
+    name: 'Meera Nair',
+    email: 'meera.nair@sanitation.gov',
+    phone: '+91 98765 43216',
     password: 'password123',
     department: 'SANIT',
-    role: 'supervisor'
+    role: 'supervisor',
+    designation: 'Sanitation Officer',
+    imageUrl: getRandomIndianAvatar(6)
   },
   {
-    name: 'Carlos Rodriguez',
-    email: 'carlos.rodriguez@sanitation.gov',
-    phone: '+1234567897',
+    name: 'Anil Kumar',
+    email: 'anil.kumar@sanitation.gov',
+    phone: '+91 98765 43217',
     password: 'password123',
     department: 'SANIT',
-    role: 'worker'
+    role: 'worker',
+    designation: 'Sanitation Worker',
+    imageUrl: getRandomIndianAvatar(7)
   },
   
   // Public Safety Department
   {
-    name: 'Jennifer Lee',
-    email: 'jennifer.lee@safety.gov',
-    phone: '+1234567898',
+    name: 'Deepak Verma',
+    email: 'deepak.verma@safety.gov',
+    phone: '+91 98765 43218',
     password: 'password123',
     department: 'SAFETY',
-    role: 'supervisor'
+    role: 'supervisor',
+    designation: 'Safety Inspector',
+    imageUrl: getRandomIndianAvatar(8)
   },
   {
-    name: 'Robert Taylor',
-    email: 'robert.taylor@safety.gov',
-    phone: '+1234567899',
+    name: 'Ravi Gupta',
+    email: 'ravi.gupta@safety.gov',
+    phone: '+91 98765 43219',
     password: 'password123',
     department: 'SAFETY',
-    role: 'worker'
+    role: 'worker',
+    designation: 'Safety Officer',
+    imageUrl: getRandomIndianAvatar(9)
   },
   
   // Healthcare Department
   {
-    name: 'Dr. Maria Martinez',
-    email: 'maria.martinez@health.gov',
-    phone: '+1234567800',
+    name: 'Dr. Kavita Rao',
+    email: 'kavita.rao@health.gov',
+    phone: '+91 98765 43220',
     password: 'password123',
     department: 'HEALTH',
-    role: 'supervisor'
+    role: 'supervisor',
+    designation: 'Chief Medical Officer',
+    imageUrl: getRandomIndianAvatar(10)
   },
   {
-    name: 'Nurse Amy Chen',
-    email: 'amy.chen@health.gov',
-    phone: '+1234567801',
+    name: 'Sunita Iyer',
+    email: 'sunita.iyer@health.gov',
+    phone: '+91 98765 43221',
     password: 'password123',
     department: 'HEALTH',
-    role: 'worker'
+    role: 'worker',
+    designation: 'Health Worker',
+    imageUrl: getRandomIndianAvatar(11)
   },
   
   // Education Department
   {
-    name: 'Principal James Anderson',
-    email: 'james.anderson@education.gov',
-    phone: '+1234567802',
+    name: 'Prof. Ramesh Menon',
+    email: 'ramesh.menon@education.gov',
+    phone: '+91 98765 43222',
     password: 'password123',
     department: 'EDUC',
-    role: 'supervisor'
+    role: 'supervisor',
+    designation: 'Education Officer',
+    imageUrl: getRandomIndianAvatar(12)
   },
   {
-    name: 'Teacher Susan White',
-    email: 'susan.white@education.gov',
-    phone: '+1234567803',
+    name: 'Lakshmi Pillai',
+    email: 'lakshmi.pillai@education.gov',
+    phone: '+91 98765 43223',
     password: 'password123',
     department: 'EDUC',
-    role: 'worker'
+    role: 'worker',
+    designation: 'Field Education Coordinator',
+    imageUrl: getRandomIndianAvatar(13)
   },
   
   // Environment Department
   {
-    name: 'Dr. Michael Green',
-    email: 'michael.green@environment.gov',
-    phone: '+1234567804',
+    name: 'Dr. Arjun Joshi',
+    email: 'arjun.joshi@environment.gov',
+    phone: '+91 98765 43224',
     password: 'password123',
     department: 'ENV',
-    role: 'supervisor'
+    role: 'supervisor',
+    designation: 'Environmental Scientist',
+    imageUrl: getRandomIndianAvatar(14)
   },
   {
-    name: 'Eco Officer Rachel Kim',
-    email: 'rachel.kim@environment.gov',
-    phone: '+1234567805',
+    name: 'Rashmi Malhotra',
+    email: 'rashmi.malhotra@environment.gov',
+    phone: '+91 98765 43225',
     password: 'password123',
     department: 'ENV',
-    role: 'worker'
+    role: 'worker',
+    designation: 'Environment Inspector',
+    imageUrl: getRandomIndianAvatar(15)
   },
   
   // Transportation Department
   {
-    name: 'Traffic Manager Kevin Park',
-    email: 'kevin.park@transportation.gov',
-    phone: '+1234567806',
+    name: 'Naveen Choudhury',
+    email: 'naveen.choudhury@transportation.gov',
+    phone: '+91 98765 43226',
     password: 'password123',
     department: 'TRANS',
-    role: 'supervisor'
+    role: 'supervisor',
+    designation: 'Traffic Manager',
+    imageUrl: getRandomIndianAvatar(16)
   },
   {
-    name: 'Transport Officer Alex Thompson',
-    email: 'alex.thompson@transportation.gov',
-    phone: '+1234567807',
+    name: 'Manoj Tiwari',
+    email: 'manoj.tiwari@transportation.gov',
+    phone: '+91 98765 43227',
     password: 'password123',
     department: 'TRANS',
-    role: 'worker'
+    role: 'worker',
+    designation: 'Transport Officer',
+    imageUrl: getRandomIndianAvatar(17)
   },
   
   // Housing Department
   {
-    name: 'Housing Director Patricia Clark',
-    email: 'patricia.clark@housing.gov',
-    phone: '+1234567808',
+    name: 'Padmini Krishnan',
+    email: 'padmini.krishnan@housing.gov',
+    phone: '+91 98765 43228',
     password: 'password123',
     department: 'HOUSING',
-    role: 'supervisor'
+    role: 'supervisor',
+    designation: 'Housing Director',
+    imageUrl: getRandomIndianAvatar(0)
   },
   {
-    name: 'Housing Officer Daniel Lewis',
-    email: 'daniel.lewis@housing.gov',
-    phone: '+1234567809',
+    name: 'Dinesh Nair',
+    email: 'dinesh.nair@housing.gov',
+    phone: '+91 98765 43229',
     password: 'password123',
     department: 'HOUSING',
-    role: 'worker'
+    role: 'worker',
+    designation: 'Housing Officer',
+    imageUrl: getRandomIndianAvatar(1)
   }
 ];
 
@@ -254,8 +326,15 @@ async function seedDemoUsers() {
   try {
     console.log('🌱 Starting to seed demo users and departments...');
     
+    // Get MongoDB URI from environment or use default
+    const mongoUri = process.env.MONGODB_URI || 'mongodb://localhost:27017/civic-connect';
+    console.log(`📡 Attempting to connect to MongoDB: ${mongoUri.replace(/\/\/.*@/, '//***@')}`);
+    
     // Connect to MongoDB
-    await mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/civicconnect');
+    await mongoose.connect(mongoUri, {
+      useNewUrlParser: true,
+      useUnifiedTopology: true,
+    });
     console.log('✅ Connected to MongoDB');
     
     // Clear existing data
@@ -286,7 +365,9 @@ async function seedDemoUsers() {
         phone: userData.phone,
         password: hashedPassword,
         department: userData.department,
-        role: userData.role
+        role: userData.role,
+        designation: userData.designation || null,
+        imageUrl: userData.imageUrl || null
       });
       await user.save();
       console.log(`✅ Created user: ${userData.name} (${userData.email}) - ${userData.role} in ${userData.department}`);
@@ -306,9 +387,21 @@ async function seedDemoUsers() {
     
   } catch (error) {
     console.error('❌ Error seeding demo data:', error);
+    if (error.name === 'MongooseServerSelectionError') {
+      console.error('\n⚠️  MongoDB is not running or not accessible!');
+      console.error('📝 Please ensure MongoDB is running:');
+      console.error('   - On Windows: net start MongoDB');
+      console.error('   - On macOS: brew services start mongodb-community');
+      console.error('   - On Linux: sudo systemctl start mongod');
+      console.error('\n   Or check your MONGODB_URI in .env file');
+      console.error(`   Current URI: ${process.env.MONGODB_URI || 'mongodb://localhost:27017/civic-connect'}`);
+    }
+    process.exit(1);
   } finally {
-    await mongoose.disconnect();
-    console.log('🔌 Disconnected from MongoDB');
+    if (mongoose.connection.readyState === 1) {
+      await mongoose.disconnect();
+      console.log('🔌 Disconnected from MongoDB');
+    }
   }
 }
 

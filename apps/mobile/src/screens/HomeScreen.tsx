@@ -75,7 +75,6 @@ export default function HomeScreen({ navigation }: any) {
   const [officials, setOfficials] = useState<any[]>([]);
   const [loadingOfficials, setLoadingOfficials] = useState(false);
   const officialsListRef = useRef<FlatList>(null);
-  const [officialsIndex, setOfficialsIndex] = useState(0);
 
   useEffect(() => {
     const updateNow = () => {
@@ -129,11 +128,19 @@ export default function HomeScreen({ navigation }: any) {
       setLoadingOfficials(true);
       try {
         const response = await DepartmentService.getOfficials();
-        if (response.status === 'success' && response.data.officials) {
-          setOfficials(response.data.officials);
+        if (response.status === 'success') {
+          const officialsList = response.data?.officials || [];
+          // Duplicate the list for seamless infinite scroll
+          setOfficials([...officialsList, ...officialsList, ...officialsList]);
+          console.log(`📊 Loaded ${officialsList.length} officials`);
+        } else {
+          console.warn('Failed to fetch officials:', response.message);
+          setOfficials([]);
         }
-      } catch (error) {
+      } catch (error: any) {
         console.error('Error fetching officials:', error);
+        console.error('Error details:', error.message);
+        setOfficials([]);
       } finally {
         setLoadingOfficials(false);
       }
@@ -141,16 +148,81 @@ export default function HomeScreen({ navigation }: any) {
     fetchOfficials();
   }, []);
 
-  // Auto-scroll officials carousel
+  // Continuous scroll animation (train-like movement)
   useEffect(() => {
     if (officials.length === 0) return;
-    const id = setInterval(() => {
-      const next = (officialsIndex + 1) % officials.length;
-      officialsListRef.current?.scrollToIndex({ index: next, animated: true });
-      setOfficialsIndex(next);
-    }, 5000);
-    return () => clearInterval(id);
-  }, [officialsIndex, officials.length]);
+    
+    const cardWidth = (width - 40) / 2;
+    const scrollDistance = cardWidth + 8; // card width + margin
+    const originalOfficialsCount = officials.length / 3; // We duplicated 3 times
+    const sectionSize = originalOfficialsCount * scrollDistance;
+    
+    let intervalId: ReturnType<typeof setInterval> | null = null;
+    let currentOffset = 16; // Start at padding position
+    const speed = 0.5; // pixels per 16ms (adjust for speed: higher = faster, ~30 pixels/second)
+    let lastUpdateTime = Date.now();
+    let isRunning = true;
+    
+    // Use setInterval for more reliable continuous scrolling
+    const startAnimation = () => {
+      if (!officialsListRef.current) {
+        // Retry after a short delay if ref is not ready
+        setTimeout(startAnimation, 100);
+        return;
+      }
+      
+      intervalId = setInterval(() => {
+        if (!isRunning || !officialsListRef.current) return;
+        
+        try {
+          const now = Date.now();
+          const deltaTime = now - lastUpdateTime;
+          lastUpdateTime = now;
+          
+          // Time-based movement for consistent speed regardless of frame rate
+          const timeBasedSpeed = speed * (deltaTime / 16); // Normalize to 60fps
+          currentOffset += timeBasedSpeed;
+          
+          // When we reach the end of the first section, reset to start (seamless loop)
+          if (currentOffset >= sectionSize) {
+            currentOffset = 16; // Reset to start with padding
+          }
+          
+          // Ensure offset is valid
+          const targetOffset = Math.max(0, Math.min(currentOffset, sectionSize));
+          
+          // Scroll with error handling
+          try {
+            officialsListRef.current.scrollToOffset({
+              offset: targetOffset,
+              animated: false, // No animation for smooth continuous scroll
+            });
+          } catch (scrollError) {
+            // If scroll fails, try to recover by resetting offset
+            console.warn('Scroll error, resetting:', scrollError);
+            currentOffset = 16;
+          }
+        } catch (error) {
+          // Continue on error - animation will recover
+          console.warn('Animation error (continuing):', error);
+        }
+      }, 16); // ~60fps for smooth animation
+    };
+    
+    // Start animation after FlatList has rendered
+    const timeoutId = setTimeout(() => {
+      lastUpdateTime = Date.now();
+      startAnimation();
+    }, 400);
+    
+    return () => {
+      isRunning = false;
+      clearTimeout(timeoutId);
+      if (intervalId !== null) {
+        clearInterval(intervalId);
+      }
+    };
+  }, [officials.length, width]);
 
 
   return (
@@ -334,38 +406,38 @@ marginLeft :20,
           <FlatList
             ref={officialsListRef}
             data={officials}
-            keyExtractor={(item, index) => item._id || index.toString()}
+            keyExtractor={(item, index) => `${item._id || item.email || 'official'}-${index}`}
             horizontal
-            pagingEnabled
+            pagingEnabled={false}
             showsHorizontalScrollIndicator={false}
-            onScrollToIndexFailed={() => {}}
-            onMomentumScrollEnd={(event) => {
-              const index = Math.round(event.nativeEvent.contentOffset.x / (width - 32));
-              setOfficialsIndex(index);
-            }}
-            renderItem={({ item }) => (
-              <View style={[styles.officialCard, { width: width - 32 }]}>
-                <View style={styles.officialImageContainer}>
-                  {item.imageUrl ? (
-                    <Image source={{ uri: item.imageUrl }} style={styles.officialImage} />
-                  ) : (
-                    <View style={styles.officialImagePlaceholder}>
-                      <Feather name="user" size={40} color="#9CA3AF" />
-                    </View>
-                  )}
-                </View>
-                <Text style={styles.officialName}>{item.name}</Text>
-                <Text style={styles.officialDesignation}>
-                  {item.designation || (item.role === 'supervisor' ? 'Supervisor' : 'Field Worker')}
-                </Text>
-                <Text style={styles.officialDepartment}>{item.department}</Text>
-                <View style={styles.officialContact}>
-                  <Feather name="phone" size={14} color="#6B7280" />
-                  <Text style={styles.officialPhone}>{item.phone}</Text>
-                </View>
-              </View>
-            )}
+            scrollEnabled={false}
             contentContainerStyle={styles.officialsScroll}
+            onScrollToIndexFailed={() => {}}
+            renderItem={({ item }) => {
+              const cardWidth = (width - 40) / 2;
+              return (
+                <View style={[styles.officialCard, { width: cardWidth }]}>
+                  <View style={styles.officialImageContainer}>
+                    {item.imageUrl ? (
+                      <Image source={{ uri: item.imageUrl }} style={styles.officialImage} />
+                    ) : (
+                    <View style={styles.officialImagePlaceholder}>
+                      <Feather name="user" size={32} color="#9CA3AF" />
+                    </View>
+                    )}
+                  </View>
+                  <Text style={styles.officialName} numberOfLines={1}>{item.name}</Text>
+                  <Text style={styles.officialDesignation} numberOfLines={2}>
+                    {item.designation || (item.role === 'supervisor' ? 'Supervisor' : 'Field Worker')}
+                  </Text>
+                  <Text style={styles.officialDepartment} numberOfLines={1}>{item.department}</Text>
+                  <View style={styles.officialContact}>
+                    <Feather name="phone" size={14} color="#6B7280" />
+                    <Text style={styles.officialPhone} numberOfLines={1}>{item.phone}</Text>
+                  </View>
+                </View>
+              );
+            }}
           />
         ) : (
           <View style={styles.officialsEmpty}>
@@ -746,13 +818,14 @@ const styles = StyleSheet.create({
     alignItems: 'center'
   },
   officialsScroll: {
-    paddingBottom: 4
+    paddingBottom: 4,
+    paddingHorizontal: 16
   },
   officialCard: {
     backgroundColor: '#FFFFFF',
     borderRadius: 16,
-    padding: 20,
-    marginRight: 12,
+    padding: 16,
+    marginRight: 8,
     alignItems: 'center',
     shadowColor: '#000',
     shadowOffset: {
@@ -763,43 +836,45 @@ const styles = StyleSheet.create({
     shadowRadius: 3.84,
     elevation: 5,
     borderWidth: 1,
-    borderColor: '#E5E7EB'
+    borderColor: '#E5E7EB',
+    minHeight: 220
   },
   officialImageContainer: {
-    marginBottom: 16
+    marginBottom: 12
   },
   officialImage: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
+    width: 80,
+    height: 80,
+    borderRadius: 40,
     backgroundColor: '#F3F4F6'
   },
   officialImagePlaceholder: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
+    width: 80,
+    height: 80,
+    borderRadius: 40,
     backgroundColor: '#F3F4F6',
     justifyContent: 'center',
     alignItems: 'center'
   },
   officialName: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '700',
     color: '#111827',
-    marginBottom: 6,
-    textAlign: 'center'
-  },
-  officialDesignation: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#10B981',
     marginBottom: 4,
     textAlign: 'center'
   },
-  officialDepartment: {
+  officialDesignation: {
     fontSize: 12,
+    fontWeight: '600',
+    color: '#10B981',
+    marginBottom: 4,
+    textAlign: 'center',
+    lineHeight: 16
+  },
+  officialDepartment: {
+    fontSize: 11,
     color: '#6B7280',
-    marginBottom: 12,
+    marginBottom: 8,
     textAlign: 'center'
   },
   officialContact: {
@@ -808,9 +883,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center'
   },
   officialPhone: {
-    fontSize: 12,
+    fontSize: 11,
     color: '#6B7280',
-    marginLeft: 6
+    marginLeft: 6,
+    flexShrink: 1
   },
   officialsEmpty: {
     height: 100,

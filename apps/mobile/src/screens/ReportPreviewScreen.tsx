@@ -294,9 +294,9 @@ const ReportPreviewScreen: React.FC<ReportPreviewScreenProps> = ({ navigation, r
     priority: 'Medium',
     submittedDate: currentDate,
     reporter: {
-      name: 'John Doe', // This could be from user profile
-      email: 'john.doe@email.com',
-      phone: '+1 (555) 123-4567',
+      name: reporterName || 'Citizen User', // This could be from user profile
+      email: 'citizen@email.com',
+      phone: reporterPhone || '+91 98765 43210',
       userId: 'USR-2024-001',
     },
     issue: {
@@ -315,10 +315,10 @@ const ReportPreviewScreen: React.FC<ReportPreviewScreenProps> = ({ navigation, r
     },
     assignment: {
       department: 'Sanitation Department', // This could be determined by category
-      assignedTo: 'Sewage Management Team',
-      assignedPerson: 'Engineer David Chen',
-      contactEmail: 'david.chen@municipal.gov',
-      contactPhone: '+1 (555) 456-7890',
+      assignedTo: 'Sanitation Management Team',
+      assignedPerson: 'Meera Nair',
+      contactEmail: 'meera.nair@sanitation.gov',
+      contactPhone: '+91 98765 43216',
       estimatedResolution: '3-5 business days',
     },
   };
