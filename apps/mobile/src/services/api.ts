@@ -428,8 +428,8 @@ export class ApiService {
     }
   }
 
-  // Analyze image using ML service for pothole detection
-  static async analyzeImage(imageUri: string): Promise<any> {
+  // Analyze image using ML service for issue detection
+  static async analyzeImage(imageUri: string, category?: string): Promise<any> {
     try {
       const formData = new FormData();
       
@@ -440,8 +440,14 @@ export class ApiService {
       } as any;
       
       formData.append('image', file);
+      
+      // Add category if provided
+      if (category) {
+        formData.append('category', category);
+        formData.append('issueCategory', category);
+      }
 
-      console.log(`🤖 Analyzing image for potholes:`, imageUri);
+      console.log(`🤖 Analyzing image for issues (category: ${category || 'road'}):`, imageUri);
 
       const response = await fetch(`${this.baseURL}/reports/analyze-image`, {
         method: 'POST',

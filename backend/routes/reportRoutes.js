@@ -661,10 +661,11 @@ router.post('/analyze-image', upload.single('image'), async (req, res) => {
     }
 
     const imagePath = req.file.path;
-    console.log('🤖 Analyzing image:', req.file.filename);
+    const category = req.body.category || req.body.issueCategory || 'road'; // Get category from request
+    console.log(`🤖 Analyzing image: ${req.file.filename} for category: ${category}`);
 
-    // Analyze image using ML service
-    const analysisResults = await mlService.analyzeImageForPotholes(imagePath);
+    // Analyze image using ML service with category
+    const analysisResults = await mlService.analyzeImageForPotholes(imagePath, category);
     
     console.log('🤖 ML Analysis complete:', analysisResults);
 

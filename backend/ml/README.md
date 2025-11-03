@@ -1,6 +1,10 @@
-# ML Pothole Detection Service
+# ML Civic Issue Detection Service
 
-This directory contains the ML service for detecting potholes in images.
+This directory contains the ML service for detecting various civic issues (potholes, garbage, construction, etc.) in images.
+
+## ⚠️ IMPORTANT: Setup Required
+
+**If you see "Python not available, using MOCK Node.js image analysis"** in your logs, you need to set up Python. See [PYTHON_SETUP.md](./PYTHON_SETUP.md) for detailed instructions.
 
 ## How It Works
 
@@ -39,10 +43,12 @@ pip3 install -r requirements.txt
 ```
 
 Required packages:
-- `opencv-python` - For image processing and computer vision
+- `opencv-python-headless` - For image processing and computer vision (headless version works better with newer Python versions)
 - `numpy` - For numerical operations
 - `Pillow` - For image handling
 - `requests` - For HTTP requests (if needed)
+
+**Note for Python 3.14+**: If `opencv-python` installation fails, use `opencv-python-headless` instead.
 
 ### Step 3: Verify Installation
 Test if everything works:
@@ -51,7 +57,7 @@ Test if everything works:
 python backend/ml/service.py
 ```
 
-You should see: "Pothole Detection Service initialized"
+You should see: "Issue Detection Service initialized"
 
 ### Step 4: Test with an Image
 ```bash

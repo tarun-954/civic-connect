@@ -45,8 +45,8 @@ function checkPythonAvailability() {
   });
 }
 
-// Analyze image for potholes using Python ML service
-async function analyzeImageForPotholes(imagePath) {
+// Analyze image for issues using Python ML service
+async function analyzeImageForPotholes(imagePath, category = 'road') {
   return new Promise(async (resolve, reject) => {
     try {
       // Check if Python is available
@@ -55,6 +55,26 @@ async function analyzeImageForPotholes(imagePath) {
       if (!pythonAvailable) {
         console.log('⚠️ Python not available, using MOCK Node.js image analysis');
         console.log('⚠️ Note: This is NOT real ML detection - just file size based guessing');
+        console.log('');
+        console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+        console.log('❌ PYTHON NOT FOUND - REAL ML DETECTION NOT AVAILABLE');
+        console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+        console.log('');
+        console.log('To enable REAL ML detection, you need to:');
+        console.log('');
+        console.log('1. Install Python 3.11+ from https://www.python.org/downloads/');
+        console.log('   ⚠️ IMPORTANT: Check "Add Python to PATH" during installation');
+        console.log('');
+        console.log('2. Install Python dependencies:');
+        console.log('   cd backend\\ml');
+        console.log('   python -m pip install -r requirements.txt');
+        console.log('');
+        console.log('3. Restart your backend server');
+        console.log('');
+        console.log('4. For detailed instructions, see: backend/ml/PYTHON_SETUP.md');
+        console.log('');
+        console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+        console.log('');
         const result = nodeAnalyzeImage(imagePath);
         return resolve(result);
       }
@@ -63,7 +83,8 @@ async function analyzeImageForPotholes(imagePath) {
       const mlServicePath = path.join(__dirname, '..', 'ml', 'service.py');
       
       if (!fs.existsSync(mlServicePath)) {
-        console.log('⚠️ ML service not found, using MOCK Node.js image analysis');
+        console.log('⚠️ ML service file (service.py) not found at:', mlServicePath);
+        console.log('⚠️ Using MOCK Node.js image analysis');
         console.log('⚠️ Note: This is NOT real ML detection - just file size based guessing');
         const result = nodeAnalyzeImage(imagePath);
         return resolve(result);
@@ -95,14 +116,16 @@ async function analyzeImageForPotholes(imagePath) {
       }
       
       console.log(`🐍 Using Python command: ${pythonCommand}`);
-      console.log('🔬 Starting REAL ML Analysis (Python/OpenCV)...');
+      console.log(`🔬 Starting REAL ML Analysis (Python/OpenCV) for category: ${category}...`);
       
-      // Call Python ML service
+      // Call Python ML service with category parameter
       const command = pythonCommand.split(' ');
       const python = spawn(command[0], command.slice(1).concat([
         path.join(__dirname, '..', 'ml', 'service.py'),
         '--analyze',
-        imagePath
+        imagePath,
+        '--category',
+        category
       ]));
 
       let output = '';

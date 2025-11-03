@@ -167,24 +167,26 @@ const ReportPreviewScreen: React.FC<ReportPreviewScreenProps> = ({ navigation, r
         }
       }
 
-      // Analyze images for pothole detection if category is Road/Road Safety
-      if (displayData.issue?.category?.toLowerCase().includes('road') && uploadedPhotos.length > 0) {
+      // Analyze images for ML detection for ALL categories if images are available
+      if (uploadedPhotos.length > 0) {
         try {
-          console.log('🤖 Starting ML analysis for pothole detection...');
+          const category = displayData.issue?.category || 'general';
+          console.log(`🤖 Starting ML analysis for category: ${category}...`);
           const firstImage = uploadedPhotos[0].uri;
           
-          // Analyze first image for pothole detection
-          const analysisResult = await ApiService.analyzeImage(firstImage);
+          // Analyze first image for issue detection based on category
+          const analysisResult = await ApiService.analyzeImage(firstImage, category);
           
           if (analysisResult?.data?.analysis) {
             setMlAnalysis(analysisResult.data.analysis);
             console.log('✅ ML Analysis complete:', analysisResult.data.analysis);
             
-            // Display analysis results to user
+            // Display analysis results to user (non-blocking)
             if (analysisResult.data.analysis.detected) {
+              const issueType = analysisResult.data.analysis.issueType || category;
               Alert.alert(
-                'Pothole Detected',
-                `ML Analysis detected pothole damage!\n\nConfidence: ${(analysisResult.data.analysis.confidence * 100).toFixed(1)}%\nSeverity: ${analysisResult.data.analysis.severity}\nPriority: ${analysisResult.data.analysis.priority}`,
+                `${issueType} Detected`,
+                `ML Analysis detected ${issueType.toLowerCase()} issue!\n\nConfidence: ${(analysisResult.data.analysis.confidence * 100).toFixed(1)}%\nSeverity: ${analysisResult.data.analysis.severity}\nPriority: ${analysisResult.data.analysis.priority}\n\n${analysisResult.data.analysis.recommendation || ''}`,
                 [{ text: 'OK' }]
               );
             }
@@ -249,10 +251,32 @@ const ReportPreviewScreen: React.FC<ReportPreviewScreenProps> = ({ navigation, r
         console.error('Error sending notification:', notificationError);
       }
       
+      // Build success message with ML analysis details if available
+      let successMessage = `Your report has been submitted!\n\nReport ID: ${response.data.reportId}\nTracking Code: ${trackingCode}\n\nTracking code has been copied to clipboard.`;
+      
+      // Add ML analysis details if available
+      if (mlAnalysis) {
+        const issueType = mlAnalysis.issueType || displayData.issue?.category || 'Issue';
+        const confidencePercent = (mlAnalysis.confidence * 100).toFixed(1);
+        
+        successMessage += `\n\n━━━ ML Analysis Results ━━━\n`;
+        successMessage += `Issue Type: ${issueType}\n`;
+        successMessage += `Detection: ${mlAnalysis.detected ? '✅ Detected' : '❌ Not Detected'}\n`;
+        successMessage += `Confidence: ${confidencePercent}%\n`;
+        successMessage += `Severity: ${mlAnalysis.severity}\n`;
+        successMessage += `Priority: ${mlAnalysis.priority}\n`;
+        if (mlAnalysis.num_detections > 0) {
+          successMessage += `Detections: ${mlAnalysis.num_detections}\n`;
+        }
+        if (mlAnalysis.recommendation) {
+          successMessage += `\nRecommendation:\n${mlAnalysis.recommendation}`;
+        }
+      }
+      
       // Show success message with copy and track options
       Alert.alert(
         'Report Submitted Successfully! 🎉',
-        `Your report has been submitted!\n\nReport ID: ${response.data.reportId}\nTracking Code: ${trackingCode}\n\nTracking code has been copied to clipboard.`,
+        successMessage,
         [
           {
             text: 'Track Report',
