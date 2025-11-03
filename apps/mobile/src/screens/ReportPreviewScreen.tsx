@@ -260,16 +260,18 @@ const ReportPreviewScreen: React.FC<ReportPreviewScreenProps> = ({ navigation, r
         const confidencePercent = (mlAnalysis.confidence * 100).toFixed(1);
         
         successMessage += `\n\n━━━ ML Analysis Results ━━━\n`;
-        successMessage += `Issue Type: ${issueType}\n`;
-        successMessage += `Detection: ${mlAnalysis.detected ? '✅ Detected' : '❌ Not Detected'}\n`;
-        successMessage += `Confidence: ${confidencePercent}%\n`;
-        successMessage += `Severity: ${mlAnalysis.severity}\n`;
-        successMessage += `Priority: ${mlAnalysis.priority}\n`;
-        if (mlAnalysis.num_detections > 0) {
-          successMessage += `Detections: ${mlAnalysis.num_detections}\n`;
+        successMessage += `Detected: ${mlAnalysis.detected ? 'true' : 'false'}\n`;
+        successMessage += `Issue type: ${issueType}\n`;
+        successMessage += `Confidence: ${mlAnalysis.confidence} (${confidencePercent}%)\n`;
+        successMessage += `Detections: ${mlAnalysis.num_detections || 0}\n`;
+        successMessage += `Severity: ${mlAnalysis.severity}`;
+        
+        // Add priority and recommendation if available
+        if (mlAnalysis.priority) {
+          successMessage += `\nPriority: ${mlAnalysis.priority}`;
         }
         if (mlAnalysis.recommendation) {
-          successMessage += `\nRecommendation:\n${mlAnalysis.recommendation}`;
+          successMessage += `\n\nRecommendation:\n${mlAnalysis.recommendation}`;
         }
       }
       
