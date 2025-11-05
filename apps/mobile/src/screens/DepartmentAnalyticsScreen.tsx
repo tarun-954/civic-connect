@@ -30,6 +30,8 @@ function LanguageSelector() {
   );
 }
 
+import { useFocusEffect } from '@react-navigation/native';
+
 export default function DepartmentAnalyticsScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -50,16 +52,29 @@ export default function DepartmentAnalyticsScreen() {
     }
   };
 
-  // Filter reports by selected period
+  // Filter reports by selected period (use resolution/updated time when available)
   const getFilteredReportsByPeriod = useMemo(() => {
     const days = getPeriodDays(selectedPeriod);
     const cutoffDate = new Date();
     cutoffDate.setDate(cutoffDate.getDate() - days);
-    
-    return reports.filter(report => {
-      if (!report.submittedAt) return false;
-      const reportDate = new Date(report.submittedAt);
-      return reportDate >= cutoffDate;
+
+    const pickRelevantDate = (r: any): Date | null => {
+      const status = r?.status;
+      const resolvedAt = r?.resolution?.resolvedAt ? new Date(r.resolution.resolvedAt) : null;
+      const updatedAt = r?.updatedAt ? new Date(r.updatedAt) : null;
+      const submittedAt = r?.submittedAt ? new Date(r.submittedAt) : null;
+
+      // For resolved/closed, prioritize resolution timestamp, then updatedAt
+      if ((status === 'resolved' || status === 'closed') && (resolvedAt || updatedAt)) {
+        return resolvedAt || updatedAt;
+      }
+      // Otherwise, use updatedAt if present, else submittedAt
+      return updatedAt || submittedAt || null;
+    };
+
+    return reports.filter(r => {
+      const d = pickRelevantDate(r);
+      return d ? d >= cutoffDate : false;
     });
   }, [reports, selectedPeriod]);
 
@@ -107,6 +122,14 @@ export default function DepartmentAnalyticsScreen() {
     fetchAllReports();
   }, [loadDepartmentInfo, fetchAllReports]);
 
+  // Refetch whenever screen comes into focus (e.g., after updating an issue)
+  useFocusEffect(
+    React.useCallback(() => {
+      fetchAllReports();
+      return () => {};
+    }, [fetchAllReports])
+  );
+
   // Refresh
   const onRefresh = () => {
     setRefreshing(true);
@@ -116,29 +139,29 @@ export default function DepartmentAnalyticsScreen() {
   // Compute reports by status (with period and filter)
   const byStatus = useMemo(() => {
     const counts = { submitted: 0, in_progress: 0, resolved: 0, closed: 0, overdue: 0 };
-    
-    // First filter by period, then by category/department
+
     const periodFilteredReports = getFilteredReportsByPeriod;
     const filteredReports = periodFilteredReports.filter(r => {
       if (selectedFilter === 'All') return true;
-      const cat = r?.issue?.category || 'Other';
-      const dept = r?.assignedTo?.department || r?.department || 'Unassigned';
 
-      const departmentMapping: Record<string, string | string[]> = {
-        ROAD_DEPT: 'Road',
-        ELECTRICITY_DEPT: 'Electricity',
-        SEWAGE_DEPT: 'Sewage',
-        CLEANLINESS_DEPT: ['Cleanliness', 'Dustbin Full'],
-        WATER_DEPT: 'Water',
-        STREETLIGHT_DEPT: 'Streetlight',
-      };
+      const category = r?.issue?.category || 'Other';
+      const deptCode = r?.assignment?.department
+        || r?.assignedTo?.departmentCode
+        || r?.departmentCode
+        || null;
+      const deptName = r?.assignedTo?.department
+        || r?.assignment?.departmentName
+        || r?.department
+        || null;
 
-      const mappedCategory = departmentMapping[selectedFilter as keyof typeof departmentMapping];
-      const isMappedCategory = Array.isArray(mappedCategory)
-        ? mappedCategory.includes(cat)
-        : mappedCategory && cat === mappedCategory;
+      const isDeptCode = typeof selectedFilter === 'string' && selectedFilter.endsWith('_DEPT');
 
-      return cat === selectedFilter || dept === selectedFilter || isMappedCategory;
+      if (isDeptCode) {
+        return deptCode === selectedFilter || deptName === selectedFilter; // support name mistakenly stored as code
+      }
+
+      // If filter is a category name, match category
+      return category === selectedFilter;
     });
 
     for (const r of filteredReports) {
@@ -150,30 +173,28 @@ export default function DepartmentAnalyticsScreen() {
 
   // Total reports (with period and filter)
   const totalReports = useMemo(() => {
-    // First filter by period, then by category/department
     const periodFilteredReports = getFilteredReportsByPeriod;
-    
+
     if (selectedFilter === 'All') return periodFilteredReports.length;
-    
+
+    const isDeptCode = typeof selectedFilter === 'string' && selectedFilter.endsWith('_DEPT');
+
     return periodFilteredReports.filter(r => {
-      const cat = r?.issue?.category || 'Other';
-      const dept = r?.assignedTo?.department || r?.department || 'Unassigned';
+      const category = r?.issue?.category || 'Other';
+      const deptCode = r?.assignment?.department
+        || r?.assignedTo?.departmentCode
+        || r?.departmentCode
+        || null;
+      const deptName = r?.assignedTo?.department
+        || r?.assignment?.departmentName
+        || r?.department
+        || null;
 
-      const departmentMapping: Record<string, string | string[]> = {
-        ROAD_DEPT: 'Road',
-        ELECTRICITY_DEPT: 'Electricity',
-        SEWAGE_DEPT: 'Sewage',
-        CLEANLINESS_DEPT: ['Cleanliness', 'Dustbin Full'],
-        WATER_DEPT: 'Water',
-        STREETLIGHT_DEPT: 'Streetlight',
-      };
+      if (isDeptCode) {
+        return deptCode === selectedFilter || deptName === selectedFilter;
+      }
 
-      const mappedCategory = departmentMapping[selectedFilter as keyof typeof departmentMapping];
-      const isMappedCategory = Array.isArray(mappedCategory)
-        ? mappedCategory.includes(cat)
-        : mappedCategory && cat === mappedCategory;
-
-      return cat === selectedFilter || dept === selectedFilter || isMappedCategory;
+      return category === selectedFilter;
     }).length;
   }, [getFilteredReportsByPeriod, selectedFilter]);
 
@@ -222,7 +243,7 @@ export default function DepartmentAnalyticsScreen() {
     return days;
   }, [selectedPeriod]);
 
-  // Series data for charts (with period filtering)
+  // Series data for charts (with period filtering and proper date attribution)
   const makeSeriesByStatus = useCallback(
     (status: 'submitted' | 'in_progress' | 'resolved' | 'overdue', filter?: string) => {
       const days = timeWindow;
@@ -232,39 +253,60 @@ export default function DepartmentAnalyticsScreen() {
       }, {});
       const dataMap = { ...zeroMap };
 
-      // Use period-filtered reports
       const periodFilteredReports = getFilteredReportsByPeriod;
 
+      const matchesFilter = (r: any) => {
+        if (!filter || filter === 'All') return true;
+        const category = r?.issue?.category || 'Other';
+        const deptCode = r?.assignment?.department
+          || r?.assignedTo?.departmentCode
+          || r?.departmentCode
+          || null;
+        const deptName = r?.assignedTo?.department
+          || r?.assignment?.departmentName
+          || r?.department
+          || null;
+        const isDeptCode = typeof filter === 'string' && filter.endsWith('_DEPT');
+        return isDeptCode ? (deptCode === filter || deptName === filter) : category === filter;
+      };
+
+      const pickKeyDate = (r: any) => {
+        const s = r?.status;
+        const submittedAt = r?.submittedAt ? new Date(r.submittedAt) : null;
+        const updatedAt = r?.updatedAt ? new Date(r.updatedAt) : null;
+        const resolvedAt = r?.resolution?.resolvedAt ? new Date(r.resolution.resolvedAt) : null;
+        if (status === 'submitted') return submittedAt;
+        if (status === 'resolved') return resolvedAt || updatedAt;
+        if (status === 'in_progress') return updatedAt || submittedAt;
+        if (status === 'overdue') return updatedAt || submittedAt;
+        return submittedAt || updatedAt || resolvedAt;
+      };
+
       for (const r of periodFilteredReports) {
-        if (filter && filter !== 'All') {
-          const cat = r?.issue?.category || 'Other';
-          const dept = r?.assignedTo?.department || r?.department || 'Unassigned';
-
-          const departmentMapping: Record<string, string> = {
-            ROAD_DEPT: 'Road',
-            ELECTRICITY_DEPT: 'Electricity',
-            SEWAGE_DEPT: 'Sewage',
-            CLEANLINESS_DEPT: 'Cleanliness',
-            WASTE_MGMT: 'Dustbin Full',
-            WATER_DEPT: 'Water',
-            STREETLIGHT_DEPT: 'Streetlight',
-          };
-
-          const mappedCategory = departmentMapping[filter as keyof typeof departmentMapping];
-          if (cat !== filter && dept !== filter && !(mappedCategory && cat === mappedCategory)) continue;
-        }
-
-        const key = r?.submittedAt ? new Date(r.submittedAt).toISOString().slice(0, 10) : undefined;
-        if (!key || !(key in dataMap)) continue;
+        if (!matchesFilter(r)) continue;
 
         const s = r?.status || 'submitted';
-        if (status === 'resolved' && (s === 'resolved' || s === 'closed')) dataMap[key] += 1;
-        else if (s === status) dataMap[key] += 1;
+        const keyDate = pickKeyDate(r);
+        if (!keyDate) continue;
+        const key = keyDate.toISOString().slice(0, 10);
+        if (!(key in dataMap)) continue;
+
+        if (status === 'resolved') {
+          if (s === 'resolved' || s === 'closed') dataMap[key] += 1;
+        } else if (status === 'overdue') {
+          // Consider overdue as: older than 7 days and not resolved/closed
+          const created = r?.submittedAt ? new Date(r.submittedAt).getTime() : 0;
+          const isResolved = s === 'resolved' || s === 'closed';
+          const sevenDaysMs = 7 * 24 * 60 * 60 * 1000;
+          if (!isResolved && created && Date.now() - created > sevenDaysMs) dataMap[key] += 1;
+        } else if (s === status) {
+          dataMap[key] += 1;
+        }
       }
 
       return { labels: days, datasets: [{ data: days.map((d: string) => dataMap[d]), strokeWidth: 3 }] };
     },
-    [getFilteredReportsByPeriod, timeWindow]
+    [getFilteredReportsByPeriod, timeWindow, selectedFilter]
   );
 
   const seriesSubmitted = useMemo(() => makeSeriesByStatus('submitted', selectedFilter), [makeSeriesByStatus, selectedFilter]);
@@ -360,14 +402,47 @@ export default function DepartmentAnalyticsScreen() {
   };
 
   const prepareBarChartData = () => {
-    const data = departmentAnalytics.weeklyData;
+    // Aggregate from the same filtered set to keep charts in sync
+    const periodFilteredReports = getFilteredReportsByPeriod;
+
+    const filtered = periodFilteredReports.filter(r => {
+      if (selectedFilter === 'All') return true;
+      const category = r?.issue?.category || 'Other';
+      const deptCode = r?.assignment?.department
+        || r?.assignedTo?.departmentCode
+        || r?.departmentCode
+        || null;
+      const deptName = r?.assignedTo?.department
+        || r?.assignment?.departmentName
+        || r?.department
+        || null;
+      const isDeptCode = typeof selectedFilter === 'string' && selectedFilter.endsWith('_DEPT');
+      return isDeptCode ? (deptCode === selectedFilter || deptName === selectedFilter) : (category === selectedFilter);
+    });
+
+    const labels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    const counts = [0, 0, 0, 0, 0, 0, 0];
+
+    const pickKeyDate = (r: any): Date | null => {
+      const status = r?.status;
+      const resolvedAt = r?.resolution?.resolvedAt ? new Date(r.resolution.resolvedAt) : null;
+      const updatedAt = r?.updatedAt ? new Date(r.updatedAt) : null;
+      const submittedAt = r?.submittedAt ? new Date(r.submittedAt) : null;
+      if ((status === 'resolved' || status === 'closed') && (resolvedAt || updatedAt)) return resolvedAt || updatedAt;
+      return updatedAt || submittedAt || null;
+    };
+
+    for (const r of filtered) {
+      const d = pickKeyDate(r);
+      if (!d) continue;
+      const day = d.getDay(); // 0 Sun - 6 Sat
+      const idx = day === 0 ? 6 : day - 1; // map to Mon..Sun order
+      counts[idx] += 1;
+    }
+
     return {
-      labels: data.map(item => item.day),
-      datasets: [
-        {
-          data: data.map(item => item.count),
-        },
-      ],
+      labels,
+      datasets: [{ data: counts }],
     };
   };
 

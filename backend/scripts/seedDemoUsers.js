@@ -253,68 +253,15 @@ const demoUsers = [
   }
 ];
 
-// Department information
+// Department information (aligned with mobile app codes)
 const departments = [
-  {
-    name: 'Road Maintenance Department',
-    code: 'ROAD',
-    email: 'admin@roaddepartment.gov',
-    password: 'admin123'
-  },
-  {
-    name: 'Electricity Department',
-    code: 'ELEC',
-    email: 'admin@electricity.gov',
-    password: 'admin123'
-  },
-  {
-    name: 'Water Supply Department',
-    code: 'WATER',
-    email: 'admin@water.gov',
-    password: 'admin123'
-  },
-  {
-    name: 'Sanitation Department',
-    code: 'SANIT',
-    email: 'admin@sanitation.gov',
-    password: 'admin123'
-  },
-  {
-    name: 'Public Safety Department',
-    code: 'SAFETY',
-    email: 'admin@safety.gov',
-    password: 'admin123'
-  },
-  {
-    name: 'Healthcare Department',
-    code: 'HEALTH',
-    email: 'admin@health.gov',
-    password: 'admin123'
-  },
-  {
-    name: 'Education Department',
-    code: 'EDUC',
-    email: 'admin@education.gov',
-    password: 'admin123'
-  },
-  {
-    name: 'Environment Department',
-    code: 'ENV',
-    email: 'admin@environment.gov',
-    password: 'admin123'
-  },
-  {
-    name: 'Transportation Department',
-    code: 'TRANS',
-    email: 'admin@transportation.gov',
-    password: 'admin123'
-  },
-  {
-    name: 'Housing Department',
-    code: 'HOUSING',
-    email: 'admin@housing.gov',
-    password: 'admin123'
-  }
+  { name: 'Road Department', code: 'ROAD_DEPT', email: 'admin@roaddepartment.gov', password: 'admin123' },
+  { name: 'Electricity Department', code: 'ELECTRICITY_DEPT', email: 'admin@electricity.gov', password: 'admin123' },
+  { name: 'Sewage Department', code: 'SEWAGE_DEPT', email: 'admin@sewage.gov', password: 'admin123' },
+  { name: 'Cleanliness Department', code: 'CLEANLINESS_DEPT', email: 'admin@cleanliness.gov', password: 'admin123' },
+  { name: 'Waste Management', code: 'WASTE_MGMT', email: 'admin@wastemgmt.gov', password: 'admin123' },
+  { name: 'Water Department', code: 'WATER_DEPT', email: 'admin@water.gov', password: 'admin123' },
+  { name: 'Streetlight Department', code: 'STREETLIGHT_DEPT', email: 'admin@streetlight.gov', password: 'admin123' },
 ];
 
 async function seedDemoUsers() {
@@ -332,10 +279,14 @@ async function seedDemoUsers() {
     });
     console.log('✅ Connected to MongoDB');
     
-    // Clear existing data
-    await User.deleteMany({});
+    // Clear and reseed departments, but DO NOT wipe all citizen users
     await Department.deleteMany({});
-    console.log('🧹 Cleared existing data');
+    console.log('🧹 Cleared existing departments');
+
+    // Remove only existing demo users (by email) to avoid duplicates, preserve real users
+    const demoEmails = demoUsers.map(u => u.email);
+    const removed = await User.deleteMany({ email: { $in: demoEmails } });
+    console.log(`🧹 Removed ${removed.deletedCount || 0} existing demo users (preserved real users)`);
     
     // Create departments
     console.log('🏢 Creating departments...');

@@ -121,6 +121,8 @@ const ReportPreviewScreen: React.FC<ReportPreviewScreenProps> = ({ navigation, r
   const handleSubmitReport = async () => {
     try {
       setIsSubmitting(true);
+      // Holds ML analysis computed during this submission
+      let analysisFromThisSubmission: any = null;
       
       // Upload images first if they exist
       let uploadedPhotos: Array<{ uri: string; filename: string; size: number; uploadedAt: Date }> = [];
@@ -138,28 +140,29 @@ const ReportPreviewScreen: React.FC<ReportPreviewScreenProps> = ({ navigation, r
             }
           );
           console.log('✅ All images uploaded successfully:', uploadedPhotos.length);
-        } catch (uploadError) {
+        } catch (uploadError: any) {
           console.error('❌ Image upload failed:', uploadError);
+          setIsUploading(false);
+          setIsSubmitting(false);
+          
+          // Extract better error message
+          let errorMessage = 'Failed to upload images. ';
+          if (uploadError?.message) {
+            if (uploadError.message.includes('Network request failed') || uploadError.message.includes('network')) {
+              errorMessage += 'Network error - Please check your internet connection and try again.';
+            } else if (uploadError.message.includes('No authentication token')) {
+              errorMessage += 'Authentication error - Please log in again.';
+            } else {
+              errorMessage += uploadError.message;
+            }
+          } else {
+            errorMessage += 'Please check your internet connection and try again.';
+          }
+          
           Alert.alert(
             'Upload Failed',
-            'Failed to upload some images. Do you want to continue without the failed images?',
-            [
-              {
-                text: 'Cancel',
-                onPress: () => {
-                  setIsSubmitting(false);
-                  setIsUploading(false);
-                  return;
-                }
-              },
-              {
-                text: 'Continue',
-                onPress: () => {
-                  // Continue with successfully uploaded images
-                  console.log('Continuing with uploaded images:', uploadedPhotos.length);
-                }
-              }
-            ]
+            errorMessage,
+            [{ text: 'OK' }]
           );
           return;
         } finally {
@@ -178,18 +181,10 @@ const ReportPreviewScreen: React.FC<ReportPreviewScreenProps> = ({ navigation, r
           const analysisResult = await ApiService.analyzeImage(firstImage, category);
           
           if (analysisResult?.data?.analysis) {
-            setMlAnalysis(analysisResult.data.analysis);
-            console.log('✅ ML Analysis complete:', analysisResult.data.analysis);
-            
-            // Display analysis results to user (non-blocking)
-            if (analysisResult.data.analysis.detected) {
-              const issueType = analysisResult.data.analysis.issueType || category;
-              Alert.alert(
-                `${issueType} Detected`,
-                `ML Analysis detected ${issueType.toLowerCase()} issue!\n\nConfidence: ${(analysisResult.data.analysis.confidence * 100).toFixed(1)}%\nSeverity: ${analysisResult.data.analysis.severity}\nPriority: ${analysisResult.data.analysis.priority}\n\n${analysisResult.data.analysis.recommendation || ''}`,
-                [{ text: 'OK' }]
-              );
-            }
+            analysisFromThisSubmission = analysisResult.data.analysis;
+            setMlAnalysis(analysisFromThisSubmission);
+            console.log('✅ ML Analysis complete:', analysisFromThisSubmission);
+            // Don't show popup here - will show in final success message
           }
         } catch (mlError) {
           console.error('⚠️ ML Analysis failed (continuing without analysis):', mlError);
@@ -204,9 +199,10 @@ const ReportPreviewScreen: React.FC<ReportPreviewScreenProps> = ({ navigation, r
       let priority = 'Low'; // Default priority
       let severity = 'Low'; // Default severity
       
-      if (mlAnalysis) {
-        priority = mlAnalysis.priority || 'Low';
-        severity = mlAnalysis.severity || 'Low';
+      const analysisToUse = analysisFromThisSubmission || mlAnalysis;
+      if (analysisToUse) {
+        priority = analysisToUse.priority || 'Low';
+        severity = analysisToUse.severity || 'Low';
         console.log(`🤖 Setting priority to ${priority} based on ML analysis`);
       }
       
@@ -223,7 +219,7 @@ const ReportPreviewScreen: React.FC<ReportPreviewScreenProps> = ({ navigation, r
           photos: uploadedPhotos, // Use uploaded photos instead of local paths
           ...(priority && { priority: priority }),
           ...(severity && { severity: severity }),
-          ...(mlAnalysis && { mlAnalysis: mlAnalysis }) // Include full ML analysis results
+          ...(analysisToUse && { mlAnalysis: analysisToUse }) // Include full ML analysis results
         }
       };
       
@@ -255,23 +251,23 @@ const ReportPreviewScreen: React.FC<ReportPreviewScreenProps> = ({ navigation, r
       let successMessage = `Your report has been submitted!\n\nReport ID: ${response.data.reportId}\nTracking Code: ${trackingCode}\n\nTracking code has been copied to clipboard.`;
       
       // Add ML analysis details if available
-      if (mlAnalysis) {
-        const issueType = mlAnalysis.issueType || displayData.issue?.category || 'Issue';
-        const confidencePercent = (mlAnalysis.confidence * 100).toFixed(1);
+      if (analysisToUse) {
+        const issueType = analysisToUse.issueType || displayData.issue?.category || 'Issue';
+        const confidencePercent = (analysisToUse.confidence * 100).toFixed(1);
         
         successMessage += `\n\n━━━ ML Analysis Results ━━━\n`;
-        successMessage += `Detected: ${mlAnalysis.detected ? 'true' : 'false'}\n`;
+        successMessage += `Detected: ${analysisToUse.detected ? 'true' : 'false'}\n`;
         successMessage += `Issue type: ${issueType}\n`;
-        successMessage += `Confidence: ${mlAnalysis.confidence} (${confidencePercent}%)\n`;
-        successMessage += `Detections: ${mlAnalysis.num_detections || 0}\n`;
-        successMessage += `Severity: ${mlAnalysis.severity}`;
+        successMessage += `Confidence: ${analysisToUse.confidence} (${confidencePercent}%)\n`;
+        successMessage += `Detections: ${analysisToUse.num_detections || 0}\n`;
+        successMessage += `Severity: ${analysisToUse.severity}`;
         
         // Add priority and recommendation if available
-        if (mlAnalysis.priority) {
-          successMessage += `\nPriority: ${mlAnalysis.priority}`;
+        if (analysisToUse.priority) {
+          successMessage += `\nPriority: ${analysisToUse.priority}`;
         }
-        if (mlAnalysis.recommendation) {
-          successMessage += `\n\nRecommendation:\n${mlAnalysis.recommendation}`;
+        if (analysisToUse.recommendation) {
+          successMessage += `\n\nRecommendation:\n${analysisToUse.recommendation}`;
         }
       }
       

@@ -388,6 +388,14 @@ export class ApiService {
     } catch (error: any) {
       console.error(`❌ Error uploading image (attempt ${retryCount + 1}):`, error);
       
+      // Check if it's a network error
+      const isNetworkError = 
+        error?.message?.includes('Network request failed') ||
+        error?.message?.includes('network') ||
+        error?.message?.includes('Failed to fetch') ||
+        error?.message?.includes('NetworkError') ||
+        (error?.name === 'TypeError' && error?.message?.includes('fetch'));
+      
       // Retry if we haven't exceeded max retries
       if (retryCount < maxRetries) {
         console.log(`🔄 Retrying upload in ${retryDelay}ms...`);
@@ -395,14 +403,21 @@ export class ApiService {
         return this.uploadImage(imageUri, retryCount + 1);
       }
       
-      throw error;
+      // Provide better error message after all retries failed
+      if (isNetworkError) {
+        throw new Error('Network error - Please check your internet connection and try again.');
+      }
+      
+      // Re-throw original error with message
+      const errorMessage = error?.message || error?.toString() || 'Unknown error occurred';
+      throw new Error(errorMessage);
     }
   }
 
   // Upload multiple images in parallel with progress tracking
   static async uploadImages(images: Array<{ uri: string }>, onProgress?: (completed: number, total: number) => void): Promise<Array<{ uri: string; filename: string; size: number; uploadedAt: Date }>> {
-    const uploadPromises = images.map(async (image, index) => {
-      try {
+    const settledResults = await Promise.allSettled(
+      images.map(async (image, index) => {
         const uploadedUrl = await this.uploadImage(image.uri);
         onProgress?.(index + 1, images.length);
         return {
@@ -411,21 +426,31 @@ export class ApiService {
           size: 0,
           uploadedAt: new Date()
         };
-      } catch (error: any) {
-        console.error(`❌ Failed to upload image ${index + 1}:`, error);
-        const errorMessage = error?.message || error?.toString() || 'Unknown error';
-        throw new Error(`Failed to upload image ${index + 1}/${images.length}: ${errorMessage}`);
+      })
+    );
+
+    const successes: Array<{ uri: string; filename: string; size: number; uploadedAt: Date }> = [];
+    let failedCount = 0;
+    settledResults.forEach((res, i) => {
+      if (res.status === 'fulfilled') {
+        successes.push(res.value);
+      } else {
+        failedCount += 1;
+        console.error(`❌ Failed to upload image ${i + 1}:`, res.reason);
       }
     });
 
-    try {
-      const results = await Promise.all(uploadPromises);
-      console.log(`✅ All ${images.length} images uploaded successfully`);
-      return results;
-    } catch (error) {
-      console.error('❌ One or more images failed to upload:', error);
-      throw error;
+    if (successes.length === 0) {
+      throw new Error('All image uploads failed');
     }
+
+    if (failedCount > 0) {
+      console.warn(`⚠️ ${failedCount} of ${images.length} images failed to upload; continuing with ${successes.length} images`);
+    } else {
+      console.log(`✅ All ${images.length} images uploaded successfully`);
+    }
+
+    return successes;
   }
 
   // Analyze image using ML service for issue detection
