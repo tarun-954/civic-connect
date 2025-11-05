@@ -16,6 +16,7 @@ import { LineChart, BarChart, PieChart } from 'react-native-chart-kit';
 import { Picker } from '@react-native-picker/picker';
 import { Feather } from '@expo/vector-icons';
 import { Fonts, TextStyles } from '../utils/fonts';
+import { useFocusEffect } from '@react-navigation/native';
 
 const { width } = Dimensions.get('window');
 
@@ -56,16 +57,26 @@ export default function AnalyticsScreen() {
     }
   };
 
-  // Filter reports by selected period
+  // Filter reports by selected period (align with department analytics)
   const getFilteredReportsByPeriod = useMemo(() => {
     const days = getPeriodDays(selectedPeriod);
     const cutoffDate = new Date();
     cutoffDate.setDate(cutoffDate.getDate() - days);
-    
-    return reports.filter(report => {
-      if (!report.submittedAt) return false;
-      const reportDate = new Date(report.submittedAt);
-      return reportDate >= cutoffDate;
+
+    const pickRelevantDate = (r: any): Date | null => {
+      const status = r?.status;
+      const resolvedAt = r?.resolution?.resolvedAt ? new Date(r.resolution.resolvedAt) : null;
+      const updatedAt = r?.updatedAt ? new Date(r.updatedAt) : null;
+      const submittedAt = r?.submittedAt ? new Date(r.submittedAt) : null;
+      if ((status === 'resolved' || status === 'closed') && (resolvedAt || updatedAt)) {
+        return resolvedAt || updatedAt;
+      }
+      return updatedAt || submittedAt || null;
+    };
+
+    return reports.filter(r => {
+      const d = pickRelevantDate(r);
+      return d ? d >= cutoffDate : false;
     });
   }, [reports, selectedPeriod]);
 
@@ -97,6 +108,14 @@ export default function AnalyticsScreen() {
     fetchAllReports();
   }, [fetchAllReports]);
 
+  // Keep in sync when screen regains focus (after updates elsewhere)
+  useFocusEffect(
+    React.useCallback(() => {
+      fetchAllReports();
+      return () => {};
+    }, [fetchAllReports])
+  );
+
   // Compute reports by status (with period and filter)
   const byStatus = useMemo(() => {
     const counts = { submitted: 0, in_progress: 0, resolved: 0, closed: 0, overdue: 0 };
@@ -105,24 +124,20 @@ export default function AnalyticsScreen() {
     const periodFilteredReports = getFilteredReportsByPeriod;
     const filteredReports = periodFilteredReports.filter(r => {
       if (selectedFilter === 'All') return true;
-      const cat = r?.issue?.category || 'Other';
-      const dept = r?.assignedTo?.department || r?.department || 'Unassigned';
-
-      const departmentMapping: Record<string, string | string[]> = {
-        ROAD_DEPT: 'Road',
-        ELECTRICITY_DEPT: 'Electricity',
-        SEWAGE_DEPT: 'Sewage',
-        CLEANLINESS_DEPT: ['Cleanliness', 'Dustbin Full'],
-        WATER_DEPT: 'Water',
-        STREETLIGHT_DEPT: 'Streetlight',
-      };
-
-      const mappedCategory = departmentMapping[selectedFilter as keyof typeof departmentMapping];
-      const isMappedCategory = Array.isArray(mappedCategory)
-        ? mappedCategory.includes(cat)
-        : mappedCategory && cat === mappedCategory;
-
-      return cat === selectedFilter || dept === selectedFilter || isMappedCategory;
+      const category = r?.issue?.category || 'Other';
+      const deptCode = r?.assignment?.department
+        || r?.assignedTo?.departmentCode
+        || r?.departmentCode
+        || null;
+      const deptName = r?.assignedTo?.department
+        || r?.assignment?.departmentName
+        || r?.department
+        || null;
+      const isDeptCode = typeof selectedFilter === 'string' && selectedFilter.endsWith('_DEPT');
+      if (isDeptCode) {
+        return deptCode === selectedFilter || deptName === selectedFilter;
+      }
+      return category === selectedFilter || deptName === selectedFilter;
     });
 
     for (const r of filteredReports) {
@@ -138,26 +153,23 @@ export default function AnalyticsScreen() {
     const periodFilteredReports = getFilteredReportsByPeriod;
     
     if (selectedFilter === 'All') return periodFilteredReports.length;
-    
+
+    const isDeptCode = typeof selectedFilter === 'string' && selectedFilter.endsWith('_DEPT');
+
     return periodFilteredReports.filter(r => {
-      const cat = r?.issue?.category || 'Other';
-      const dept = r?.assignedTo?.department || r?.department || 'Unassigned';
-
-      const departmentMapping: Record<string, string | string[]> = {
-        ROAD_DEPT: 'Road',
-        ELECTRICITY_DEPT: 'Electricity',
-        SEWAGE_DEPT: 'Sewage',
-        CLEANLINESS_DEPT: ['Cleanliness', 'Dustbin Full'],
-        WATER_DEPT: 'Water',
-        STREETLIGHT_DEPT: 'Streetlight',
-      };
-
-      const mappedCategory = departmentMapping[selectedFilter as keyof typeof departmentMapping];
-      const isMappedCategory = Array.isArray(mappedCategory)
-        ? mappedCategory.includes(cat)
-        : mappedCategory && cat === mappedCategory;
-
-      return cat === selectedFilter || dept === selectedFilter || isMappedCategory;
+      const category = r?.issue?.category || 'Other';
+      const deptCode = r?.assignment?.department
+        || r?.assignedTo?.departmentCode
+        || r?.departmentCode
+        || null;
+      const deptName = r?.assignedTo?.department
+        || r?.assignment?.departmentName
+        || r?.department
+        || null;
+      if (isDeptCode) {
+        return deptCode === selectedFilter || deptName === selectedFilter;
+      }
+      return category === selectedFilter || deptName === selectedFilter;
     }).length;
   }, [getFilteredReportsByPeriod, selectedFilter]);
 
@@ -216,34 +228,53 @@ export default function AnalyticsScreen() {
       }, {});
       const dataMap = { ...zeroMap };
 
-      // Use period-filtered reports
       const periodFilteredReports = getFilteredReportsByPeriod;
 
+      const matchesFilter = (r: any) => {
+        if (!filter || filter === 'All') return true;
+        const category = r?.issue?.category || 'Other';
+        const deptCode = r?.assignment?.department
+          || r?.assignedTo?.departmentCode
+          || r?.departmentCode
+          || null;
+        const deptName = r?.assignedTo?.department
+          || r?.assignment?.departmentName
+          || r?.department
+          || null;
+        const isDeptCode = typeof filter === 'string' && filter.endsWith('_DEPT');
+        return isDeptCode ? (deptCode === filter || deptName === filter) : (category === filter || deptName === filter);
+      };
+
+      const pickKeyDate = (r: any) => {
+        const s = r?.status;
+        const submittedAt = r?.submittedAt ? new Date(r.submittedAt) : null;
+        const updatedAt = r?.updatedAt ? new Date(r.updatedAt) : null;
+        const resolvedAt = r?.resolution?.resolvedAt ? new Date(r.resolution.resolvedAt) : null;
+        if (status === 'submitted') return submittedAt;
+        if (status === 'resolved') return resolvedAt || updatedAt;
+        if (status === 'in_progress') return updatedAt || submittedAt;
+        if (status === 'overdue') return updatedAt || submittedAt;
+        return submittedAt || updatedAt || resolvedAt;
+      };
+
       for (const r of periodFilteredReports) {
-        if (filter && filter !== 'All') {
-          const cat = r?.issue?.category || 'Other';
-          const dept = r?.assignedTo?.department || r?.department || 'Unassigned';
-
-          const departmentMapping: Record<string, string> = {
-            ROAD_DEPT: 'Road',
-            ELECTRICITY_DEPT: 'Electricity',
-            SEWAGE_DEPT: 'Sewage',
-            CLEANLINESS_DEPT: 'Cleanliness',
-            WASTE_MGMT: 'Dustbin Full',
-            WATER_DEPT: 'Water',
-            STREETLIGHT_DEPT: 'Streetlight',
-          };
-
-          const mappedCategory = departmentMapping[filter as keyof typeof departmentMapping];
-          if (cat !== filter && dept !== filter && !(mappedCategory && cat === mappedCategory)) continue;
-        }
-
-        const key = r?.submittedAt ? new Date(r.submittedAt).toISOString().slice(0, 10) : undefined;
-        if (!key || !(key in dataMap)) continue;
-
+        if (!matchesFilter(r)) continue;
         const s = r?.status || 'submitted';
-        if (status === 'resolved' && (s === 'resolved' || s === 'closed')) dataMap[key] += 1;
-        else if (s === status) dataMap[key] += 1;
+        const keyDate = pickKeyDate(r);
+        if (!keyDate) continue;
+        const key = keyDate.toISOString().slice(0, 10);
+        if (!(key in dataMap)) continue;
+
+        if (status === 'resolved') {
+          if (s === 'resolved' || s === 'closed') dataMap[key] += 1;
+        } else if (status === 'overdue') {
+          const created = r?.submittedAt ? new Date(r.submittedAt).getTime() : 0;
+          const isResolved = s === 'resolved' || s === 'closed';
+          const sevenDaysMs = 7 * 24 * 60 * 60 * 1000;
+          if (!isResolved && created && Date.now() - created > sevenDaysMs) dataMap[key] += 1;
+        } else if (s === status) {
+          dataMap[key] += 1;
+        }
       }
 
       return { labels: days, datasets: [{ data: days.map((d: string) => dataMap[d]), strokeWidth: 3 }] };
@@ -344,14 +375,47 @@ export default function AnalyticsScreen() {
   };
 
   const prepareBarChartData = () => {
-    const data = citizenAnalytics.weeklyData;
+    // Aggregate real data by weekday from the same filtered set
+    const periodFilteredReports = getFilteredReportsByPeriod;
+
+    const filtered = periodFilteredReports.filter(r => {
+      if (selectedFilter === 'All') return true;
+      const category = r?.issue?.category || 'Other';
+      const deptCode = r?.assignment?.department
+        || r?.assignedTo?.departmentCode
+        || r?.departmentCode
+        || null;
+      const deptName = r?.assignedTo?.department
+        || r?.assignment?.departmentName
+        || r?.department
+        || null;
+      const isDeptCode = typeof selectedFilter === 'string' && selectedFilter.endsWith('_DEPT');
+      return isDeptCode ? (deptCode === selectedFilter || deptName === selectedFilter) : (category === selectedFilter || deptName === selectedFilter);
+    });
+
+    const labels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    const counts = [0, 0, 0, 0, 0, 0, 0];
+
+    const pickKeyDate = (r: any): Date | null => {
+      const status = r?.status;
+      const resolvedAt = r?.resolution?.resolvedAt ? new Date(r.resolution.resolvedAt) : null;
+      const updatedAt = r?.updatedAt ? new Date(r.updatedAt) : null;
+      const submittedAt = r?.submittedAt ? new Date(r.submittedAt) : null;
+      if ((status === 'resolved' || status === 'closed') && (resolvedAt || updatedAt)) return resolvedAt || updatedAt;
+      return updatedAt || submittedAt || null;
+    };
+
+    for (const r of filtered) {
+      const d = pickKeyDate(r);
+      if (!d) continue;
+      const day = d.getDay(); // 0 Sun - 6 Sat
+      const idx = day === 0 ? 6 : day - 1; // Mon..Sun
+      counts[idx] += 1;
+    }
+
     return {
-      labels: data.map(item => item.day),
-      datasets: [
-        {
-          data: data.map(item => item.count),
-        },
-      ],
+      labels,
+      datasets: [{ data: counts }],
     };
   };
 
