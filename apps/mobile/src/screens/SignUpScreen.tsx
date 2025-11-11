@@ -143,6 +143,11 @@ export default function SignUpScreen() {
           activeOpacity={0.9}
         >
           <Text style={styles.secondaryButtonText}>Continue with Google</Text>
+          <Image 
+            source={require('../images/icons8-google-logo-48.png')} 
+            resizeMode="contain"
+            style={{ width: 25, height: 25, marginLeft: 8 }}
+          />
         </TouchableOpacity>
 
         <View style={styles.linkRow}>
@@ -220,7 +225,8 @@ const styles = StyleSheet.create({
     color: '#6B7280'
   },
   form: {
-    marginTop: 8
+    marginTop: 8,
+    flex: 1
   },
   input: {
     borderWidth: 1,
@@ -233,7 +239,7 @@ const styles = StyleSheet.create({
   },
   button: {
     backgroundColor: '#0B5CAB',
-    borderRadius: 24,
+    borderRadius: 12,
     paddingVertical: 14,
     alignItems: 'center'
   },
@@ -245,12 +251,14 @@ const styles = StyleSheet.create({
   secondaryButton: {
     marginTop: 12,
     backgroundColor: '#FFFFFF',
-    borderRadius: 24,
+    borderRadius: 12,
     paddingVertical: 14,
     alignItems: 'center',
     borderWidth: 1,
     borderColor: '#E5E7EB',
-    justifyContent: 'center'
+    justifyContent: 'center',
+    flexDirection: 'row',
+    paddingHorizontal: 16
   },
   secondaryButtonText: {
     color: '#0A2E68',
@@ -273,10 +281,10 @@ const styles = StyleSheet.create({
     color: '#6B7280'
   },
   linkRow: {
-    marginTop: 12,
+    marginTop: 'auto',
     flexDirection: 'row',
     justifyContent: 'center',
-    alignItems: 'center'
+    alignItems: 'baseline',
   },
   linkText: {
     color: '#6B7280'

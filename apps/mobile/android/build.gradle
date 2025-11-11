@@ -9,6 +9,10 @@ def reactNativeDir = reactNativeDirFromRelative.exists() ? reactNativeDirFromRel
 rootProject.ext.reactNativeDir = reactNativeDir
 ext.reactNativeDir = reactNativeDir
 
+// Explicitly point RN Gradle plugin consumers (e.g., reanimated) to react-native dir
+rootProject.ext.REACT_NATIVE_NODE_MODULES_DIR = reactNativeDir.getAbsolutePath()
+ext.REACT_NATIVE_NODE_MODULES_DIR = reactNativeDir.getAbsolutePath()
+
 buildscript {
     ext {
         buildToolsVersion = findProperty('android.buildToolsVersion') ?: '34.0.0'

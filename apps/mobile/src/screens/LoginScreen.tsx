@@ -132,6 +132,11 @@ export default function LoginScreen({ navigation }: any) {
           onPress={() => Alert.alert('Coming soon', 'Google sign-in will be enabled shortly.')}
         >
           <Text style={styles.googleButtonText}>Continue with Google</Text>
+          <Image 
+            source={require('../images/icons8-google-logo-48.png')} 
+            resizeMode="contain"
+            style={{ width: 25, height: 25, marginLeft: 8 }}
+          />
         </TouchableOpacity>
       </View>
 
@@ -331,6 +336,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 16,
+    paddingHorizontal: 16,
+    flexDirection: 'row',
     borderWidth: 1,
     borderColor: '#E5E7EB',
     marginBottom: 20,
@@ -348,7 +355,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: 2,
   },
   linkText: {
     color: '#6B7280',
@@ -363,11 +370,13 @@ const styles = StyleSheet.create({
   },
   switchButton: {
     alignItems: 'center',
-    padding: 12,
+    padding: 8,
+    
   },
   switchText: {
     color: '#6B7280',
     fontSize: 14,
+    textDecorationLine: 'underline',
     fontWeight: '500',
     fontFamily: Fonts.primary.regular,
   },
