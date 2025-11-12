@@ -773,6 +773,73 @@ export class DepartmentService {
       throw error;
     }
   }
+
+  // Smart Dustbin APIs
+  static async getDustbinStatus(deviceId?: string): Promise<any> {
+    try {
+      const url = deviceId 
+        ? `${this.baseURL}/dustbins/status?deviceId=${deviceId}`
+        : `${this.baseURL}/dustbins/status`;
+      
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' }
+      });
+      
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result.message || 'Failed to fetch dustbin status');
+      }
+      return result.data;
+    } catch (error) {
+      console.error('Error fetching dustbin status:', error);
+      throw error;
+    }
+  }
+
+  static async getAllDustbins(deviceIds?: string[]): Promise<any> {
+    try {
+      const url = deviceIds && deviceIds.length > 0
+        ? `${this.baseURL}/dustbins/all?deviceIds=${deviceIds.join(',')}`
+        : `${this.baseURL}/dustbins/all`;
+      
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' }
+      });
+      
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result.message || 'Failed to fetch dustbins');
+      }
+      return result.data;
+    } catch (error) {
+      console.error('Error fetching dustbins:', error);
+      throw error;
+    }
+  }
+
+  static async getDustbinPin(pin: string, deviceId?: string): Promise<any> {
+    try {
+      const url = deviceId
+        ? `${this.baseURL}/dustbins/pin/${pin}?deviceId=${deviceId}`
+        : `${this.baseURL}/dustbins/pin/${pin}`;
+      
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' }
+      });
+      
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result.message || 'Failed to fetch pin value');
+      }
+      return result.data;
+    } catch (error) {
+      console.error('Error fetching pin value:', error);
+      throw error;
+    }
+  }
 }
 
 // OTP APIs

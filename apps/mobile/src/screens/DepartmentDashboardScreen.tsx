@@ -401,6 +401,27 @@ export default function DepartmentDashboardScreen({ navigation }: any) {
                 <Text style={styles.serviceLabel}>Emergency Response</Text>
               </TouchableOpacity>
             </View>
+
+            {/* Fourth Row - Smart Dustbin */}
+            <View style={styles.servicesGrid}>
+              <TouchableOpacity
+                style={styles.serviceItem}
+                onPress={() => {
+                  const parentNav = navigation.getParent();
+                  if (parentNav) {
+                    parentNav.navigate('SmartDustbin');
+                  } else {
+                    navigation.navigate('SmartDustbin');
+                  }
+                }}
+                activeOpacity={0.9}
+              >
+                <View style={[styles.serviceIcon, { backgroundColor: '#FFFFFF' }]}>
+                  <Feather name="trash-2" size={28} color="#10B981" />
+                </View>
+                <Text style={styles.serviceLabel}>Smart Dustbin</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
 

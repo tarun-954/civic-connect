@@ -21,6 +21,7 @@ import DepartmentIssuesScreen from './screens/DepartmentIssuesScreen';
 import DepartmentAnalyticsScreen from './screens/DepartmentAnalyticsScreen';
 import DepartmentNotificationsScreen from './screens/DepartmentNotificationsScreen';
 import DepartmentMapScreen from './screens/DepartmentMapScreen';
+import SmartDustbinScreen from './screens/SmartDustbinScreen';
 import { useFonts } from 'expo-font';
 import { Text } from 'react-native';
 import { Feather } from '@expo/vector-icons';
@@ -170,6 +171,7 @@ export default function App() {
         <Stack.Screen name="ReportLocation" component={ReportLocationScreen} />
         <Stack.Screen name="TrackReport" component={TrackReportScreen} />
         <Stack.Screen name="Departments" component={DepartmentsScreen} />
+        <Stack.Screen name="SmartDustbin" component={SmartDustbinScreen} />
       </Stack.Navigator>
     </NavigationContainer>
   );
