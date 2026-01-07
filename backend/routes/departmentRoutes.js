@@ -2,6 +2,10 @@ const express = require('express');
 const jwt = require('jsonwebtoken');
 const Department = require('../models/Department');
 const Report = require('../models/Report');
+const NotificationService = require('../services/notificationService');
+const mlService = require('../services/mlService');
+const path = require('path');
+const fs = require('fs');
 
 const router = express.Router();
 
@@ -23,6 +27,94 @@ async function requireDepartment(req, res, next) {
   } catch (e) {
     return res.status(401).json({ status: 'error', message: 'Invalid token' });
   }
+}
+
+function resolveLocalImagePath(imageUri) {
+  if (!imageUri) return null;
+  try {
+    const parsed = new URL(imageUri);
+    const filename = path.basename(parsed.pathname);
+    if (!filename) return null;
+    const diskPath = path.join(__dirname, '..', 'uploads', 'reports', filename);
+    return fs.existsSync(diskPath) ? diskPath : null;
+  } catch (error) {
+    const filename = path.basename(imageUri);
+    if (!filename) return null;
+    const diskPath = path.join(__dirname, '..', 'uploads', 'reports', filename);
+    return fs.existsSync(diskPath) ? diskPath : null;
+  }
+}
+
+async function analyzeResolutionPhotos(report, photos) {
+  const details = [];
+
+  for (const photo of photos) {
+    const localPath = resolveLocalImagePath(photo.uri || photo.url);
+    if (!localPath) {
+      details.push({
+        uri: photo.uri || photo.url,
+        detected: null,
+        confidence: 0,
+        summary: 'Image file not found on server'
+      });
+      continue;
+    }
+
+    try {
+      const analysis = await mlService.analyzeImageForPotholes(
+        localPath,
+        report.issue?.category || 'general'
+      );
+
+      details.push({
+        uri: photo.uri || photo.url,
+        detected: !!analysis?.detected,
+        confidence: analysis?.confidence ?? 0,
+        severity: analysis?.severity || null,
+        priority: analysis?.priority || null,
+        recommendation: analysis?.recommendation || null
+      });
+    } catch (error) {
+      console.error('Resolution proof analysis failed:', error);
+      details.push({
+        uri: photo.uri || photo.url,
+        detected: null,
+        confidence: 0,
+        summary: 'Analysis failed',
+        error: error?.message || 'Unknown error'
+      });
+    }
+  }
+
+  const validAnalyses = details.filter(d => typeof d.detected === 'boolean');
+  const failCount = validAnalyses.filter(d => d.detected && (d.confidence ?? 0) >= 0.5).length;
+  const status =
+    validAnalyses.length === 0
+      ? 'unknown'
+      : failCount === 0
+        ? 'pass'
+        : 'fail';
+
+  const averageConfidence =
+    validAnalyses.length === 0
+      ? 0
+      : validAnalyses.reduce((sum, item) => sum + (item.confidence || 0), 0) /
+        validAnalyses.length;
+
+  const summary =
+    status === 'pass'
+      ? 'No significant remaining issues detected in proof images.'
+      : status === 'fail'
+        ? 'Potential issues still detected in proof images.'
+        : 'Automated assessment unavailable for the provided images.';
+
+  return {
+    status,
+    confidence: Number(averageConfidence.toFixed(2)),
+    summary,
+    details,
+    analyzedAt: new Date()
+  };
 }
 
 // Admin created credentials only; expose signup for seed or admin use via code
@@ -86,6 +178,15 @@ router.patch('/issues/:reportId/status', requireDepartment, async (req, res) => 
     const { status, notes } = req.body || {};
     const report = await Report.findOne({ reportId });
     if (!report) return res.status(404).json({ status: 'error', message: 'Report not found' });
+    const oldStatus = report.status;
+
+    if (status === 'resolved') {
+      return res.status(400).json({
+        status: 'error',
+        message: 'Resolution proof required. Use the resolution submission endpoint.'
+      });
+    }
+
     report.status = status || report.status;
     if (notes) {
       report.notes = report.notes || [];
@@ -93,9 +194,134 @@ router.patch('/issues/:reportId/status', requireDepartment, async (req, res) => 
     }
     report.updatedAt = new Date();
     await report.save();
+
+    try {
+      await NotificationService.onReportStatusUpdate(report, oldStatus, report.status);
+    } catch (notifyError) {
+      console.error('Failed to send status update notification:', notifyError);
+    }
+
     res.status(200).json({ status: 'success', data: { report } });
   } catch (e) {
     res.status(500).json({ status: 'error', message: 'Failed to update status' });
+  }
+});
+
+router.post('/issues/:reportId/resolution', requireDepartment, async (req, res) => {
+  try {
+    const { reportId } = req.params;
+    const { photos, description, notes } = req.body || {};
+
+    if (!Array.isArray(photos) || photos.length === 0) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'At least one proof photo is required to submit a resolution'
+      });
+    }
+
+    const report = await Report.findOne({ reportId });
+    if (!report) {
+      return res.status(404).json({ status: 'error', message: 'Report not found' });
+    }
+
+    const deptCode = req.departmentAuth.deptCode;
+    if (report.assignment?.department && report.assignment.department !== deptCode) {
+      return res.status(403).json({
+        status: 'error',
+        message: 'You are not authorized to resolve this report'
+      });
+    }
+
+    const normalizedPhotos = photos.map((photo, index) => {
+      const uri = photo?.uri || photo?.url;
+      const filename =
+        photo?.filename ||
+        (uri ? path.basename(uri) : `resolution_${reportId}_${index + 1}.jpg`);
+      return {
+        uri,
+        filename,
+        uploadedAt: photo?.uploadedAt ? new Date(photo.uploadedAt) : new Date()
+      };
+    });
+
+    const qualityCheck = await analyzeResolutionPhotos(report, normalizedPhotos);
+
+    const oldStatus = report.status;
+    report.status = 'resolved';
+    report.resolution = {
+      ...(report.resolution || {}),
+      description:
+        description ||
+        report.resolution?.description ||
+        'Resolution proof submitted by department',
+      resolvedAt: new Date(),
+      resolvedBy: deptCode,
+      resolutionPhotos: normalizedPhotos,
+      pendingApproval: true,
+      approvalStatus: 'pending',
+      rejectionReason: null,
+      reviewedAt: null,
+      reviewedBy: null,
+      reviewedByRole: null,
+      qualityCheck
+    };
+
+    report.resolution.approvalHistory = [
+      ...(report.resolution?.approvalHistory || []),
+      {
+        status: 'pending',
+        by: deptCode,
+        role: 'department',
+        notes: notes || null,
+        at: new Date()
+      }
+    ];
+
+    if (notes) {
+      report.notes = report.notes || [];
+      report.notes.push({
+        note: notes,
+        addedBy: 'department',
+        addedAt: new Date()
+      });
+    }
+
+    report.updatedAt = new Date();
+    await report.save();
+
+    try {
+      await NotificationService.onReportStatusUpdate(report, oldStatus, report.status);
+    } catch (notifyError) {
+      console.error('Failed to notify status update for resolution:', notifyError);
+    }
+
+    try {
+      await NotificationService.sendToUser(report.reporter.email, {
+        type: 'resolution_pending',
+        title: 'Work Completed - Awaiting Your Review',
+        message: `The ${report.assignment?.department || 'assigned department'} uploaded proof of work for report ${report.trackingCode || report.reportId}. Please review and approve the resolution.`,
+        reportId: report.reportId,
+        trackingId: report.trackingCode,
+        priority: report.priority || 'medium',
+        photos: normalizedPhotos,
+        qualityCheck
+      });
+    } catch (notifyUserError) {
+      console.error('Failed to send resolution notification to user:', notifyUserError);
+    }
+
+    res.status(200).json({
+      status: 'success',
+      data: {
+        resolution: report.resolution
+      }
+    });
+  } catch (error) {
+    console.error('Error submitting resolution proof:', error);
+    res.status(500).json({
+      status: 'error',
+      message: 'Failed to submit resolution proof'
+    });
   }
 });
 

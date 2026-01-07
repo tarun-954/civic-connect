@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   SafeAreaView,
   View,
@@ -11,20 +11,41 @@ import {
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Feather } from '@expo/vector-icons';
+import { useFocusEffect } from '@react-navigation/native';
 import { useAuth } from '../contexts/AuthContext';
-import { ApiService, NotificationApiService, DepartmentService } from '../services/api';
-import NotificationService from '../services/notificationService';
+import { NotificationApiService, DepartmentService } from '../services/api';
+import { navigationRef } from '../navigation/navigationRef';
+
+type NotificationType =
+  | 'new_report'
+  | 'report_update'
+  | 'report_resolved'
+  | 'general'
+  | 'issue_assigned'
+  | 'issue_updated'
+  | 'urgent_issue'
+  | 'system'
+  | 'resolution_pending'
+  | 'resolution_approved'
+  | 'resolution_rejected';
 
 interface Notification {
   _id: string;
   title: string;
   message: string;
-  type: 'new_report' | 'report_update' | 'report_resolved' | 'general' | 'issue_assigned' | 'issue_updated' | 'urgent_issue' | 'system';
+  type: NotificationType;
   reportId?: string;
   trackingId?: string;
   department?: string;
   category?: string;
-  priority: 'low' | 'medium' | 'high';
+  priority?: 'low' | 'medium' | 'high' | 'urgent';
+  photos?: Array<{ uri: string; filename?: string; uploadedAt?: string }>;
+  qualityCheck?: {
+    status?: 'pass' | 'fail' | 'unknown';
+    confidence?: number;
+    summary?: string;
+  };
+  metadata?: Record<string, any>;
   read: boolean; // Department notifications use 'read' instead of 'isRead'
   isRead?: boolean; // Citizen notifications use 'isRead'
   createdAt: string;
@@ -37,36 +58,17 @@ const NotificationsScreen = ({ navigation }: any) => {
   const [refreshing, setRefreshing] = useState(false);
   const [isDepartmentUser, setIsDepartmentUser] = useState<boolean | null>(null);
 
-  useEffect(() => {
-    checkUserType();
-  }, []);
-
-  useEffect(() => {
-    if (isDepartmentUser !== null) {
-      loadNotifications();
-    }
-  }, [isDepartmentUser]);
-
-  const checkUserType = async () => {
-    try {
-      const userRole = await AsyncStorage.getItem('userRole');
-      setIsDepartmentUser(userRole === 'department');
-    } catch (error) {
-      console.error('Error checking user type:', error);
-    }
-  };
-
-  const loadNotifications = async () => {
+  const loadNotifications = useCallback(async () => {
     try {
       setLoading(true);
       let response;
-      
+
       if (isDepartmentUser) {
         response = await DepartmentService.getNotifications();
       } else {
         response = await NotificationApiService.getUserNotifications();
       }
-      
+
       if (response.status === 'success') {
         setNotifications(response.data.notifications || []);
       }
@@ -75,6 +77,34 @@ const NotificationsScreen = ({ navigation }: any) => {
       Alert.alert('Error', 'Failed to load notifications');
     } finally {
       setLoading(false);
+    }
+  }, [isDepartmentUser]);
+
+  useEffect(() => {
+    checkUserType();
+  }, []);
+
+  useEffect(() => {
+    if (isDepartmentUser !== null) {
+      loadNotifications();
+    }
+  }, [isDepartmentUser, loadNotifications]);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (isDepartmentUser !== null) {
+        loadNotifications();
+      }
+      return () => {};
+    }, [isDepartmentUser, loadNotifications])
+  );
+
+  const checkUserType = async () => {
+    try {
+      const userRole = await AsyncStorage.getItem('userRole');
+      setIsDepartmentUser(userRole === 'department');
+    } catch (error) {
+      console.error('Error checking user type:', error);
     }
   };
 
@@ -114,10 +144,12 @@ const NotificationsScreen = ({ navigation }: any) => {
     }
 
     // Navigate based on notification type and user type
+    const rootNavigation = navigation.getParent?.() ?? navigation;
+
     if (isDepartmentUser) {
       // For department users, navigate to department issues screen
       if (notification.type === 'new_report' && notification.reportId) {
-        navigation.navigate('DepartmentTabs', { 
+        rootNavigation.navigate('DepartmentTabs', { 
           screen: 'Issues',
           params: { highlightReportId: notification.reportId }
         });
@@ -125,17 +157,34 @@ const NotificationsScreen = ({ navigation }: any) => {
     } else {
       // For citizen users, navigate to track report
       if (notification.type === 'new_report' && notification.reportId) {
-        navigation.navigate('TrackReport', { 
+        rootNavigation.navigate('TrackReport', { 
           prefilledTrackingId: notification.trackingId 
         });
       } else if (notification.type === 'report_update' && notification.trackingId) {
-        navigation.navigate('TrackReport', { 
+        rootNavigation.navigate('TrackReport', { 
           prefilledTrackingId: notification.trackingId 
         });
       } else if (notification.type === 'report_resolved' && notification.trackingId) {
-        navigation.navigate('TrackReport', { 
+        rootNavigation.navigate('TrackReport', { 
           prefilledTrackingId: notification.trackingId 
         });
+      } else if (
+        (notification.type === 'resolution_pending' || notification.type === 'resolution_approved') &&
+        notification.reportId
+      ) {
+        const params = {
+          reportId: notification.reportId,
+          trackingId: notification.trackingId,
+          photos: notification.photos || [],
+          qualityCheck: notification.qualityCheck ?? undefined,
+          canRespond: notification.type === 'resolution_pending'
+        };
+
+        if (navigationRef.isReady()) {
+          navigationRef.navigate('ResolutionReview', params);
+        } else {
+          rootNavigation.navigate('ResolutionReview', params);
+        }
       }
     }
   };
@@ -148,13 +197,21 @@ const NotificationsScreen = ({ navigation }: any) => {
         return { name: 'edit', color: '#F59E0B' };
       case 'report_resolved':
         return { name: 'check-circle', color: '#059669' };
+      case 'resolution_pending':
+        return { name: 'upload-cloud', color: '#3B82F6' };
+      case 'resolution_approved':
+        return { name: 'thumbs-up', color: '#10B981' };
+      case 'resolution_rejected':
+        return { name: 'x-circle', color: '#EF4444' };
       default:
-        return { name: 'bell', color: priority === 'high' ? '#EF4444' : '#6B7280' };
+        return { name: 'bell', color: priority === 'high' || priority === 'urgent' ? '#EF4444' : '#6B7280' };
     }
   };
 
   const getPriorityColor = (priority: string) => {
     switch (priority) {
+      case 'urgent':
+        return '#DC2626';
       case 'high':
         return '#EF4444';
       case 'medium':
@@ -183,8 +240,9 @@ const NotificationsScreen = ({ navigation }: any) => {
   };
 
   const renderNotification = ({ item }: { item: Notification }) => {
-    const icon = getNotificationIcon(item.type, item.priority);
-    const priorityColor = getPriorityColor(item.priority);
+    const priorityValue = item.priority || 'medium';
+    const icon = getNotificationIcon(item.type, priorityValue);
+    const priorityColor = getPriorityColor(priorityValue);
 
     return (
       <TouchableOpacity
@@ -214,6 +272,16 @@ const NotificationsScreen = ({ navigation }: any) => {
             <Text style={styles.notificationMessage} numberOfLines={2}>
               {item.message}
             </Text>
+            {item.qualityCheck?.summary && (
+              <Text style={styles.notificationMetaText} numberOfLines={1}>
+                AI review: {item.qualityCheck.summary}
+              </Text>
+            )}
+            {item.photos && item.photos.length > 0 && (
+              <Text style={styles.notificationMetaText}>
+                {item.photos.length} proof image{item.photos.length > 1 ? 's' : ''}
+              </Text>
+            )}
             
             <View style={styles.footerRow}>
               <Text style={styles.timestamp}>
@@ -398,6 +466,11 @@ const styles = StyleSheet.create({
     color: '#6B7280',
     lineHeight: 20,
     marginBottom: 8,
+  },
+  notificationMetaText: {
+    fontSize: 13,
+    color: '#4B5563',
+    marginBottom: 6,
   },
   footerRow: {
     flexDirection: 'row',

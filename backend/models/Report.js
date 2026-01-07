@@ -221,7 +221,80 @@ const reportSchema = new mongoose.Schema({
         type: Date,
         default: Date.now
       }
-    }]
+    }],
+    pendingApproval: {
+      type: Boolean,
+      default: false
+    },
+    approvalStatus: {
+      type: String,
+      enum: ['pending', 'approved', 'rejected'],
+      default: 'pending'
+    },
+    approvalHistory: [{
+      status: {
+        type: String,
+        enum: ['pending', 'approved', 'rejected'],
+        default: 'pending'
+      },
+      by: {
+        type: String,
+        default: null
+      },
+      role: {
+        type: String,
+        enum: ['department', 'citizen', 'system'],
+        default: 'system'
+      },
+      notes: {
+        type: String,
+        default: null
+      },
+      at: {
+        type: Date,
+        default: Date.now
+      }
+    }],
+    qualityCheck: {
+      status: {
+        type: String,
+        enum: ['pass', 'fail', 'unknown'],
+        default: 'unknown'
+      },
+      confidence: {
+        type: Number,
+        default: 0
+      },
+      summary: {
+        type: String,
+        default: null
+      },
+      details: {
+        type: mongoose.Schema.Types.Mixed,
+        default: null
+      },
+      analyzedAt: {
+        type: Date,
+        default: null
+      }
+    },
+    rejectionReason: {
+      type: String,
+      default: null
+    },
+    reviewedAt: {
+      type: Date,
+      default: null
+    },
+    reviewedBy: {
+      type: String,
+      default: null
+    },
+    reviewedByRole: {
+      type: String,
+      enum: ['citizen', 'department', 'system', null],
+      default: null
+    }
   }
 }, {
   timestamps: true,

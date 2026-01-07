@@ -22,6 +22,9 @@ import DepartmentAnalyticsScreen from './screens/DepartmentAnalyticsScreen';
 import DepartmentNotificationsScreen from './screens/DepartmentNotificationsScreen';
 import DepartmentMapScreen from './screens/DepartmentMapScreen';
 import SmartDustbinScreen from './screens/SmartDustbinScreen';
+import ResolutionReviewScreen from './screens/ResolutionReviewScreen';
+import NotificationsScreen from './screens/NotificationsScreen';
+import { navigationRef } from './navigation/navigationRef';
 import { useFonts } from 'expo-font';
 import { Text } from 'react-native';
 import { Feather } from '@expo/vector-icons';
@@ -156,7 +159,7 @@ export default function App() {
   };
 
   return (
-    <NavigationContainer>
+    <NavigationContainer ref={navigationRef}>
       <Stack.Navigator 
         initialRouteName="Splash"
         screenOptions={{ headerShown: false }}
@@ -172,6 +175,8 @@ export default function App() {
         <Stack.Screen name="TrackReport" component={TrackReportScreen} />
         <Stack.Screen name="Departments" component={DepartmentsScreen} />
         <Stack.Screen name="SmartDustbin" component={SmartDustbinScreen} />
+        <Stack.Screen name="Notifications" component={NotificationsScreen} />
+        <Stack.Screen name="ResolutionReview" component={ResolutionReviewScreen} />
       </Stack.Navigator>
     </NavigationContainer>
   );

@@ -35,6 +35,48 @@ export class ApiService {
     }
   }
 
+  static async approveResolution(reportId: string, notes?: string): Promise<any> {
+    try {
+      const headers: any = { 'Content-Type': 'application/json', ...(await this.authHeaders()) };
+      const response = await fetch(`${this.baseURL}/reports/${reportId}/resolution/approve`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(notes ? { notes } : {})
+      });
+
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result.message || 'Failed to approve resolution');
+      }
+
+      return result;
+    } catch (error) {
+      console.error('Error approving resolution:', error);
+      throw error;
+    }
+  }
+
+  static async rejectResolution(reportId: string, reason?: string): Promise<any> {
+    try {
+      const headers: any = { 'Content-Type': 'application/json', ...(await this.authHeaders()) };
+      const response = await fetch(`${this.baseURL}/reports/${reportId}/resolution/reject`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(reason ? { reason } : {})
+      });
+
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result.message || 'Failed to reject resolution');
+      }
+
+      return result;
+    } catch (error) {
+      console.error('Error rejecting resolution:', error);
+      throw error;
+    }
+  }
+
   // User signup
   static async signup(data: { name: string; email: string; phone: string; password: string; }): Promise<any> {
     // Use AbortController to prevent indefinite hanging on poor networks
@@ -320,7 +362,10 @@ export class ApiService {
     const retryDelay = 1000 * (retryCount + 1); // Exponential backoff
 
     try {
-      const token = await AsyncStorage.getItem('authToken');
+      let token = await AsyncStorage.getItem('authToken');
+      if (!token) {
+        token = await AsyncStorage.getItem('deptToken');
+      }
       if (!token) {
         throw new Error('No authentication token found');
       }
@@ -615,6 +660,35 @@ export class DepartmentService {
       return result;
     } catch (error) {
       console.error('Error updating issue status:', error);
+      throw error;
+    }
+  }
+
+  static async submitResolution(reportId: string, payload: {
+    photos: Array<{ uri: string; filename?: string; uploadedAt?: string | Date }>;
+    description?: string;
+    notes?: string;
+  }): Promise<any> {
+    try {
+      const token = await AsyncStorage.getItem('deptToken');
+      if (!token) throw new Error('No department token found');
+
+      const response = await fetch(`${this.baseURL}/departments/issues/${reportId}/resolution`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify(payload)
+      });
+
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result.message || 'Failed to submit resolution proof');
+      }
+      return result;
+    } catch (error) {
+      console.error('Error submitting resolution proof:', error);
       throw error;
     }
   }

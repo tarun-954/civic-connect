@@ -12,10 +12,16 @@ class NotificationService {
         return false;
       }
 
+      const priority = typeof notification.priority === 'string'
+        ? notification.priority
+        : 'medium';
+
       department.notifications.push({
         ...notification,
+        priority,
         createdAt: new Date(),
-        read: false
+        read: false,
+        readAt: null
       });
 
       await department.save();
@@ -41,10 +47,16 @@ class NotificationService {
         user.notifications = [];
       }
 
+      const priority = typeof notification.priority === 'string'
+        ? notification.priority
+        : 'medium';
+
       user.notifications.push({
         ...notification,
+        priority,
         createdAt: new Date(),
-        read: false
+        read: false,
+        readAt: null
       });
 
       await user.save();
@@ -182,6 +194,7 @@ class NotificationService {
       const notification = user.notifications.id(notificationId);
       if (notification) {
         notification.read = true;
+        notification.readAt = new Date();
         await user.save();
         return true;
       }
@@ -201,6 +214,7 @@ class NotificationService {
       const notification = department.notifications.id(notificationId);
       if (notification) {
         notification.read = true;
+        notification.readAt = new Date();
         await department.save();
         return true;
       }

@@ -281,6 +281,154 @@ router.post('/:reportId/comments', requireAuth, async (req, res) => {
   }
 });
 
+router.post('/:reportId/resolution/approve', requireAuth, async (req, res) => {
+  try {
+    const email = req.auth?.sub;
+    const { reportId } = req.params;
+    const { notes } = req.body || {};
+
+    const report = await Report.findOne({ reportId });
+    if (!report) {
+      return res.status(404).json({ status: 'error', message: 'Report not found' });
+    }
+
+    if ((report.reporter?.email || '').toLowerCase() !== (email || '').toLowerCase()) {
+      return res.status(403).json({ status: 'error', message: 'You are not authorized to approve this resolution' });
+    }
+
+    if (!report.resolution?.pendingApproval || report.resolution.approvalStatus !== 'pending') {
+      return res.status(400).json({ status: 'error', message: 'No pending resolution to approve' });
+    }
+
+    const oldStatus = report.status;
+    report.status = 'closed';
+    report.resolution.pendingApproval = false;
+    report.resolution.approvalStatus = 'approved';
+    report.resolution.reviewedAt = new Date();
+    report.resolution.reviewedBy = email;
+    report.resolution.reviewedByRole = 'citizen';
+    report.resolution.rejectionReason = null;
+    report.resolution.approvalHistory = [
+      ...(report.resolution?.approvalHistory || []),
+      {
+        status: 'approved',
+        by: email,
+        role: 'citizen',
+        notes: notes || null,
+        at: new Date()
+      }
+    ];
+
+    report.updatedAt = new Date();
+    await report.save();
+
+    try {
+      await NotificationService.onReportStatusUpdate(report, oldStatus, report.status);
+    } catch (notifyError) {
+      console.error('Failed to send approval status notification:', notifyError);
+    }
+
+    if (report.assignment?.department) {
+      try {
+        await NotificationService.sendToDepartment(report.assignment.department, {
+          type: 'resolution_approved',
+          title: 'Resolution Approved',
+          message: `Citizen confirmed the resolution for report ${report.trackingCode || report.reportId}. Great job!`,
+          reportId: report.reportId,
+          trackingId: report.trackingCode,
+          priority: report.priority || 'medium'
+        });
+      } catch (deptNotifyError) {
+        console.error('Failed to notify department about approval:', deptNotifyError);
+      }
+    }
+
+    res.status(200).json({
+      status: 'success',
+      data: {
+        resolution: report.resolution
+      }
+    });
+  } catch (error) {
+    console.error('Error approving resolution:', error);
+    res.status(500).json({ status: 'error', message: 'Failed to approve resolution' });
+  }
+});
+
+router.post('/:reportId/resolution/reject', requireAuth, async (req, res) => {
+  try {
+    const email = req.auth?.sub;
+    const { reportId } = req.params;
+    const { reason } = req.body || {};
+
+    const report = await Report.findOne({ reportId });
+    if (!report) {
+      return res.status(404).json({ status: 'error', message: 'Report not found' });
+    }
+
+    if ((report.reporter?.email || '').toLowerCase() !== (email || '').toLowerCase()) {
+      return res.status(403).json({ status: 'error', message: 'You are not authorized to reject this resolution' });
+    }
+
+    if (!report.resolution?.pendingApproval || report.resolution.approvalStatus !== 'pending') {
+      return res.status(400).json({ status: 'error', message: 'No pending resolution to reject' });
+    }
+
+    const oldStatus = report.status;
+    report.status = 'in_progress';
+    report.resolution.pendingApproval = false;
+    report.resolution.approvalStatus = 'rejected';
+    report.resolution.rejectionReason = reason || 'Citizen requested further work';
+    report.resolution.reviewedAt = new Date();
+    report.resolution.reviewedBy = email;
+    report.resolution.reviewedByRole = 'citizen';
+    report.resolution.approvalHistory = [
+      ...(report.resolution?.approvalHistory || []),
+      {
+        status: 'rejected',
+        by: email,
+        role: 'citizen',
+        notes: reason || null,
+        at: new Date()
+      }
+    ];
+
+    report.updatedAt = new Date();
+    await report.save();
+
+    try {
+      await NotificationService.onReportStatusUpdate(report, oldStatus, report.status);
+    } catch (notifyError) {
+      console.error('Failed to send rejection status notification:', notifyError);
+    }
+
+    if (report.assignment?.department) {
+      try {
+        await NotificationService.sendToDepartment(report.assignment.department, {
+          type: 'resolution_rejected',
+          title: 'Resolution Rejected',
+          message: `Citizen requested more work for report ${report.trackingCode || report.reportId}. Reason: ${reason || 'No reason provided.'}`,
+          reportId: report.reportId,
+          trackingId: report.trackingCode,
+          priority: 'high'
+        });
+      } catch (deptNotifyError) {
+        console.error('Failed to notify department about rejection:', deptNotifyError);
+      }
+    }
+
+    res.status(200).json({
+      status: 'success',
+      data: {
+        resolution: report.resolution
+      }
+    });
+  } catch (error) {
+    console.error('Error rejecting resolution:', error);
+    res.status(500).json({ status: 'error', message: 'Failed to reject resolution' });
+  }
+});
+
 // Get all reports
 router.get('/', async (req, res) => {
   try {

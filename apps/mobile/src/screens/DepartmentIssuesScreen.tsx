@@ -12,12 +12,15 @@ import {
   TextInput,
   Dimensions,
   ActivityIndicator,
-  Linking
+  Linking,
+  Modal,
+  ScrollView
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { DepartmentService } from '../services/api';
+import { ApiService, DepartmentService } from '../services/api';
 import { Fonts } from '../utils/fonts';
+import * as ImagePicker from 'expo-image-picker';
 
 const { width } = Dimensions.get('window');
 
@@ -48,17 +51,39 @@ type Report = {
     department?: string;
     assignedAt?: string;
   };
+  resolution?: {
+    description?: string;
+    resolvedAt?: string;
+    resolvedBy?: string;
+    resolutionPhotos?: Array<{ uri: string; filename?: string; uploadedAt?: string }>;
+    pendingApproval?: boolean;
+    approvalStatus?: 'pending' | 'approved' | 'rejected';
+    qualityCheck?: {
+      status?: 'pass' | 'fail' | 'unknown';
+      confidence?: number;
+      summary?: string;
+    };
+    rejectionReason?: string;
+    reviewedAt?: string;
+    reviewedBy?: string;
+  };
 };
 
 export default function DepartmentIssuesScreen({ route, navigation }: any) {
   const department = route?.params?.department || 'Department';
   const departmentCode = route?.params?.departmentCode;
-  const [selectedStatus, setSelectedStatus] = useState('submitted');
+  const [selectedStatus, setSelectedStatus] = useState('Pending');
   const [reports, setReports] = useState<Report[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [searchText, setSearchText] = useState('');
   const [departmentInfo, setDepartmentInfo] = useState<any>(null);
+  const [resolutionModalVisible, setResolutionModalVisible] = useState(false);
+  const [selectedReportForResolution, setSelectedReportForResolution] = useState<Report | null>(null);
+  const [proofImages, setProofImages] = useState<Array<{ uri: string }>>([]);
+  const [resolutionNotes, setResolutionNotes] = useState('');
+  const [resolutionDescription, setResolutionDescription] = useState('');
+  const [submittingResolution, setSubmittingResolution] = useState(false);
 
   // Load department information
   const loadDepartmentInfo = async () => {
@@ -96,13 +121,139 @@ export default function DepartmentIssuesScreen({ route, navigation }: any) {
     loadReports();
   };
 
+  const openResolutionModal = (report: Report) => {
+    setSelectedReportForResolution(report);
+    setProofImages([]);
+    setResolutionNotes('');
+    setResolutionDescription('');
+    setResolutionModalVisible(true);
+  };
+
+  const closeResolutionModal = () => {
+    if (submittingResolution) {
+      return;
+    }
+    setResolutionModalVisible(false);
+    setSelectedReportForResolution(null);
+    setProofImages([]);
+    setResolutionNotes('');
+    setResolutionDescription('');
+  };
+
+  const handlePickImage = async (source: 'camera' | 'library') => {
+    try {
+      if (proofImages.length >= 5) {
+        Alert.alert('Limit reached', 'You can upload up to 5 proof images per resolution.');
+        return;
+      }
+
+      let permission;
+      if (source === 'camera') {
+        permission = await ImagePicker.requestCameraPermissionsAsync();
+      } else {
+        permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      }
+
+      if (permission.status !== 'granted') {
+        Alert.alert(
+          'Permission required',
+          source === 'camera'
+            ? 'Camera access is needed to capture proof images.'
+            : 'Photo library access is needed to select proof images.'
+        );
+        return;
+      }
+
+      const pickerResult = source === 'camera'
+        ? await ImagePicker.launchCameraAsync({
+            mediaTypes: ImagePicker.MediaTypeOptions.Images,
+            quality: 0.8
+          })
+        : await ImagePicker.launchImageLibraryAsync({
+            mediaTypes: ImagePicker.MediaTypeOptions.Images,
+            allowsMultipleSelection: false,
+            quality: 0.8
+          });
+
+      if (pickerResult.canceled) {
+        return;
+      }
+
+      const assets = pickerResult.assets || [];
+      if (assets.length === 0) {
+        return;
+      }
+
+      const formatted = assets.map(asset => ({ uri: asset.uri }));
+      setProofImages(prev => {
+        const remainingSlots = Math.max(0, 5 - prev.length);
+        const nextBatch = remainingSlots > 0 ? formatted.slice(0, remainingSlots) : [];
+        return [...prev, ...nextBatch];
+      });
+    } catch (error) {
+      console.error('Error picking proof image:', error);
+      Alert.alert('Error', 'Failed to select image. Please try again.');
+    }
+  };
+
+  const removeProofImage = (index: number) => {
+    setProofImages(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const handleSubmitResolution = async () => {
+    if (!selectedReportForResolution) {
+      return;
+    }
+
+    if (proofImages.length === 0) {
+      Alert.alert('Add proof', 'Please add at least one proof image before submitting.');
+      return;
+    }
+
+    try {
+      setSubmittingResolution(true);
+      const uploaded = await ApiService.uploadImages(proofImages);
+
+      const payload = {
+        photos: uploaded.map(photo => ({
+          uri: photo.uri,
+          filename: photo.filename,
+          uploadedAt: photo.uploadedAt ? new Date(photo.uploadedAt).toISOString() : new Date().toISOString()
+        })),
+        description: resolutionDescription.trim() || undefined,
+        notes: resolutionNotes.trim() || undefined
+      };
+
+      const response = await DepartmentService.submitResolution(
+        selectedReportForResolution.reportId,
+        payload
+      );
+
+      const quality = response?.data?.resolution?.qualityCheck;
+      const summaryMessage = quality?.summary
+        ? `${quality.summary}${typeof quality.confidence === 'number' ? ` (confidence ${(quality.confidence * 100).toFixed(0)}%)` : ''}`
+        : 'Resolution proof submitted successfully.';
+
+      Alert.alert('Resolution submitted', summaryMessage);
+      closeResolutionModal();
+      setSelectedStatus('Awaiting Approval');
+      loadReports();
+    } catch (error: any) {
+      console.error('Error submitting resolution proof:', error);
+      Alert.alert('Error', error?.message || 'Failed to submit resolution proof. Please try again.');
+    } finally {
+      setSubmittingResolution(false);
+    }
+  };
+
+  const statusMap: { [key: string]: string } = {
+    'submitted': 'Pending',
+    'in_progress': 'In Progress',
+    'resolved': 'Awaiting Approval',
+    'closed': 'Closed'
+  };
+
   const filteredReports = reports.filter((report: Report) => {
-    const statusMap: { [key: string]: string } = {
-      'submitted': 'Pending',
-      'in_progress': 'In Progress', 
-      'resolved': 'Resolved'
-    };
-    
     const statusMatch = statusMap[report.status] === selectedStatus;
     const searchMatch = !searchText || 
       report.issue.category.toLowerCase().includes(searchText.toLowerCase()) ||
@@ -146,7 +297,8 @@ export default function DepartmentIssuesScreen({ route, navigation }: any) {
     switch (status) {
       case 'submitted': return '#EF4444';
       case 'in_progress': return '#F59E0B';
-      case 'resolved': return '#10B981';
+      case 'resolved': return '#3B82F6';
+      case 'closed': return '#10B981';
       default: return '#6B7280';
     }
   };
@@ -155,13 +307,16 @@ export default function DepartmentIssuesScreen({ route, navigation }: any) {
     switch (status) {
       case 'submitted': return 'clock';
       case 'in_progress': return 'play-circle';
-      case 'resolved': return 'check-circle';
+      case 'resolved': return 'clock';
+      case 'closed': return 'check-circle';
       default: return 'help-circle';
     }
   };
 
-  const formatDate = (dateString: string) => {
+  const formatDate = (dateString?: string) => {
+    if (!dateString) return 'N/A';
     const date = new Date(dateString);
+    if (Number.isNaN(date.getTime())) return 'N/A';
     return date.toLocaleDateString('en-US', {
       month: 'short',
       day: 'numeric',
@@ -217,9 +372,7 @@ export default function DepartmentIssuesScreen({ route, navigation }: any) {
         <View style={[styles.statusBadge, { backgroundColor: getStatusColor(item.status) }]}>
           <Feather name={getStatusIcon(item.status) as any} size={12} color="#fff" />
           <Text style={styles.statusText}>
-            {item.status === 'submitted' ? 'Pending' : 
-             item.status === 'in_progress' ? 'In Progress' : 
-             'Resolved'}
+            {statusMap[item.status] || 'Unknown'}
           </Text>
         </View>
       </View>
@@ -285,10 +438,18 @@ export default function DepartmentIssuesScreen({ route, navigation }: any) {
           )}
           {item.status === 'in_progress' && (
             <StatusButton
-              label="Mark Resolved"
+              label="Submit Proof"
               color="#10B981"
               icon="check"
-              onPress={() => updateStatus(item.reportId, 'resolved')}
+              onPress={() => openResolutionModal(item)}
+            />
+          )}
+          {item.status === 'resolved' && (
+            <StatusButton
+              label="Update Proof"
+              color="#3B82F6"
+              icon="upload-cloud"
+              onPress={() => openResolutionModal(item)}
             />
           )}
           <TouchableOpacity 
@@ -309,6 +470,46 @@ export default function DepartmentIssuesScreen({ route, navigation }: any) {
           </TouchableOpacity>
         </View>
       </View>
+      {(item.status === 'resolved' || item.status === 'closed') && (
+        <View
+          style={[
+            styles.resolutionSummary,
+            item.status === 'resolved'
+              ? styles.resolutionPending
+              : styles.resolutionApproved
+          ]}
+        >
+          <View style={styles.resolutionSummaryIcon}>
+            <Feather
+              name={item.status === 'resolved' ? 'clock' : 'check-circle'}
+              size={16}
+              color={item.status === 'resolved' ? '#3B82F6' : '#10B981'}
+            />
+          </View>
+          <View style={styles.resolutionSummaryText}>
+            <Text style={styles.resolutionSummaryTitle}>
+              {item.status === 'resolved'
+                ? 'Awaiting Citizen Approval'
+                : 'Closed by Citizen'}
+            </Text>
+            {item.resolution?.qualityCheck?.summary && (
+              <Text style={styles.resolutionSummarySubtitle}>
+                AI review: {item.resolution.qualityCheck.summary}
+              </Text>
+            )}
+            <Text style={styles.resolutionSummarySubtitle}>
+              {item.status === 'resolved'
+                ? `Submitted ${item.resolution?.resolvedAt ? formatDate(item.resolution.resolvedAt) : 'recently'}`
+                : `Approved ${item.resolution?.reviewedAt ? formatDate(item.resolution.reviewedAt) : 'recently'}`}
+            </Text>
+            {item.status === 'resolved' && item.resolution?.pendingApproval && (
+              <Text style={styles.resolutionSummarySubtitle}>
+                Citizen review pending
+              </Text>
+            )}
+          </View>
+        </View>
+      )}
     </TouchableOpacity>
   );
 
@@ -337,6 +538,119 @@ export default function DepartmentIssuesScreen({ route, navigation }: any) {
 
   return (
     <SafeAreaView style={styles.container}>
+      <Modal
+        visible={resolutionModalVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={closeResolutionModal}
+      >
+        <View style={styles.modalBackdrop}>
+          <View style={styles.modalCard}>
+            <View style={styles.modalHeader}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.modalTitle}>Submit Work Proof</Text>
+                <Text style={styles.modalSubtitle}>
+                  {selectedReportForResolution?.issue?.subcategory || 'Selected report'}
+                </Text>
+              </View>
+              <TouchableOpacity
+                style={styles.modalCloseButton}
+                onPress={closeResolutionModal}
+                disabled={submittingResolution}
+              >
+                <Feather name="x" size={20} color="#1F2937" />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView
+              style={styles.modalScroll}
+              contentContainerStyle={styles.modalScrollContent}
+              showsVerticalScrollIndicator={false}
+            >
+              <Text style={styles.inputLabel}>Proof Images</Text>
+              <View style={styles.proofImagesRow}>
+                {proofImages.map((image, index) => (
+                  <View key={`${image.uri}-${index}`} style={styles.proofImageWrapper}>
+                    <Image source={{ uri: image.uri }} style={styles.proofImage} />
+                    <TouchableOpacity
+                      style={styles.removeProofButton}
+                      onPress={() => removeProofImage(index)}
+                    >
+                      <Feather name="trash-2" size={14} color="#fff" />
+                    </TouchableOpacity>
+                  </View>
+                ))}
+                {proofImages.length === 0 && (
+                  <View style={styles.emptyProofPlaceholder}>
+                    <Feather name="image" size={22} color="#9CA3AF" />
+                    <Text style={styles.emptyProofText}>
+                      Add photos showing the completed work.
+                    </Text>
+                  </View>
+                )}
+              </View>
+
+              <View style={styles.proofButtonsRow}>
+                <TouchableOpacity
+                  style={styles.secondaryActionButton}
+                  onPress={() => handlePickImage('camera')}
+                >
+                  <Feather name="camera" size={16} color="#2563EB" />
+                  <Text style={styles.secondaryActionButtonText}>Camera</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.secondaryActionButton}
+                  onPress={() => handlePickImage('library')}
+                >
+                  <Feather name="image" size={16} color="#2563EB" />
+                  <Text style={styles.secondaryActionButtonText}>Gallery</Text>
+                </TouchableOpacity>
+              </View>
+
+              <Text style={styles.inputLabel}>Summary for Citizen</Text>
+              <TextInput
+                style={[styles.modalInput, { minHeight: 80 }]}
+                placeholder="Describe the work completed..."
+                placeholderTextColor="#9CA3AF"
+                multiline
+                value={resolutionDescription}
+                onChangeText={setResolutionDescription}
+              />
+
+              <Text style={styles.inputLabel}>Internal Notes (optional)</Text>
+              <TextInput
+                style={[styles.modalInput, { minHeight: 60 }]}
+                placeholder="Add any notes for your records"
+                placeholderTextColor="#9CA3AF"
+                multiline
+                value={resolutionNotes}
+                onChangeText={setResolutionNotes}
+              />
+            </ScrollView>
+
+            <TouchableOpacity
+              style={[
+                styles.submitProofButton,
+                submittingResolution && styles.submitProofButtonDisabled
+              ]}
+              onPress={handleSubmitResolution}
+              disabled={submittingResolution}
+            >
+              {submittingResolution ? (
+                <ActivityIndicator color="#FFFFFF" />
+              ) : (
+                <>
+                  <Feather name="send" size={16} color="#FFFFFF" />
+                  <Text style={styles.submitProofButtonText}>
+                    Submit for Citizen Approval
+                  </Text>
+                </>
+              )}
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
       {/* Modern Redesigned Header */}
       <View style={styles.header}>
         {/* Top Navigation Bar */}
@@ -386,10 +700,17 @@ export default function DepartmentIssuesScreen({ route, navigation }: any) {
           </View>
           <View style={styles.statDivider} />
           <View style={styles.statItem}>
-            <Text style={[styles.statNumber, { color: '#10B981' }]}>
+            <Text style={[styles.statNumber, { color: '#3B82F6' }]}>
               {reports.filter(r => r.status === 'resolved').length}
             </Text>
-            <Text style={styles.statLabel}>Resolved</Text>
+            <Text style={styles.statLabel}>Awaiting Approval</Text>
+          </View>
+          <View style={styles.statDivider} />
+          <View style={styles.statItem}>
+            <Text style={[styles.statNumber, { color: '#10B981' }]}>
+              {reports.filter(r => r.status === 'closed').length}
+            </Text>
+            <Text style={styles.statLabel}>Closed</Text>
           </View>
         </View>
 
@@ -421,7 +742,8 @@ export default function DepartmentIssuesScreen({ route, navigation }: any) {
         {[
           { key: 'submitted', label: 'Pending', count: reports.filter(r => r.status === 'submitted').length },
           { key: 'in_progress', label: 'In Progress', count: reports.filter(r => r.status === 'in_progress').length },
-          { key: 'resolved', label: 'Resolved', count: reports.filter(r => r.status === 'resolved').length }
+          { key: 'resolved', label: 'Awaiting Approval', count: reports.filter(r => r.status === 'resolved').length },
+          { key: 'closed', label: 'Closed', count: reports.filter(r => r.status === 'closed').length }
         ].map((tab) => (
           <TouchableOpacity
             key={tab.key}
@@ -843,6 +1165,196 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '600',
     marginLeft: 4,
+  },
+
+  // Resolution summary styles
+  resolutionSummary: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    backgroundColor: '#F9FAFB',
+    borderRadius: 12,
+    padding: 12,
+    marginTop: 12,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    gap: 12,
+  },
+  resolutionPending: {
+    backgroundColor: '#EFF6FF',
+    borderColor: '#DBEAFE',
+  },
+  resolutionApproved: {
+    backgroundColor: '#ECFDF5',
+    borderColor: '#D1FAE5',
+  },
+  resolutionSummaryIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FFFFFF',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  resolutionSummaryText: {
+    flex: 1,
+  },
+  resolutionSummaryTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#1F2937',
+    marginBottom: 4,
+  },
+  resolutionSummarySubtitle: {
+    fontSize: 13,
+    color: '#4B5563',
+    marginBottom: 2,
+  },
+
+  // Modal styles
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(17, 24, 39, 0.45)',
+    justifyContent: 'flex-end',
+  },
+  modalCard: {
+    backgroundColor: '#FFFFFF',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    paddingTop: 20,
+    paddingHorizontal: 20,
+    paddingBottom: 24,
+    maxHeight: '90%',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#111827',
+  },
+  modalSubtitle: {
+    fontSize: 13,
+    color: '#6B7280',
+    marginTop: 4,
+  },
+  modalCloseButton: {
+    padding: 8,
+    marginLeft: 16,
+  },
+  modalScroll: {
+    maxHeight: '65%',
+  },
+  modalScrollContent: {
+    paddingBottom: 24,
+  },
+  inputLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#1F2937',
+    marginBottom: 8,
+  },
+  proofImagesRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+    marginBottom: 16,
+  },
+  proofImageWrapper: {
+    position: 'relative',
+  },
+  proofImage: {
+    width: (width - 80) / 3,
+    height: (width - 80) / 3,
+    borderRadius: 12,
+    backgroundColor: '#E5E7EB',
+  },
+  removeProofButton: {
+    position: 'absolute',
+    top: 6,
+    right: 6,
+    backgroundColor: '#EF4444',
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  emptyProofPlaceholder: {
+    width: '100%',
+    minHeight: 100,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    borderStyle: 'dashed',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 16,
+  },
+  emptyProofText: {
+    marginTop: 8,
+    fontSize: 13,
+    color: '#6B7280',
+    textAlign: 'center',
+  },
+  proofButtonsRow: {
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 20,
+  },
+  secondaryActionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    flex: 1,
+    paddingVertical: 10,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#BFDBFE',
+    backgroundColor: '#EFF6FF',
+    gap: 8,
+  },
+  secondaryActionButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#2563EB',
+  },
+  modalInput: {
+    backgroundColor: '#F9FAFB',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    fontSize: 14,
+    color: '#111827',
+    marginBottom: 16,
+    textAlignVertical: 'top',
+  },
+  submitProofButton: {
+    marginTop: 12,
+    backgroundColor: '#2563EB',
+    borderRadius: 14,
+    paddingVertical: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  submitProofButtonDisabled: {
+    opacity: 0.6,
+  },
+  submitProofButtonText: {
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: '700',
   },
 
   // Empty State Styles
