@@ -886,13 +886,18 @@ export default function TrackReportScreen({ navigation, route }: any) {
                   <TouchableOpacity
                     style={[styles.cardButton, { marginTop: 12, backgroundColor: '#2563EB' }]}
                     onPress={() => {
-                      navigation.navigate('ResolutionReview', {
-                        reportId: report.reportId,
-                        trackingId: report.trackingCode,
-                        photos: report.resolution?.resolutionPhotos || [],
-                        qualityCheck: report.resolution?.qualityCheck,
-                        canRespond: true
-                      });
+                      try {
+                        navigation.navigate('ResolutionReview', {
+                          reportId: report.reportId,
+                          trackingId: report.trackingCode,
+                          photos: report.resolution?.resolutionPhotos || [],
+                          qualityCheck: report.resolution?.qualityCheck,
+                          canRespond: true
+                        });
+                      } catch (navError) {
+                        console.error('Navigation error:', navError);
+                        Alert.alert('Error', 'Unable to navigate to resolution review screen.');
+                      }
                     }}
                   >
                     <Text style={[styles.cardButtonText, { color: '#FFFFFF' }]}>

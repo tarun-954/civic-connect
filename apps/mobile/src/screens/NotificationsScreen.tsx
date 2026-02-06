@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Feather } from '@expo/vector-icons';
-import { useFocusEffect, CommonActions } from '@react-navigation/native';
+import { useFocusEffect, CommonActions, useNavigation } from '@react-navigation/native';
 import { useAuth } from '../contexts/AuthContext';
 import { NotificationApiService, DepartmentService } from '../services/api';
 import { navigationRef } from '../navigation/navigationRef';
@@ -51,8 +51,9 @@ interface Notification {
   createdAt: string;
 }
 
-const NotificationsScreen = ({ navigation }: any) => {
+const NotificationsScreen = ({ navigation: navProp }: any) => {
   const { user } = useAuth();
+  const navigation = useNavigation();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -144,7 +145,35 @@ const NotificationsScreen = ({ navigation }: any) => {
     }
 
     // Navigate based on notification type and user type
-    const rootNavigation = navigation.getParent?.() ?? navigation;
+    // Get root navigator - go up multiple levels if needed to reach root Stack
+    let rootNavigation = navigation;
+    try {
+      // Try to get parent navigator (might be Tab Navigator)
+      const parent = navigation.getParent?.();
+      if (parent) {
+        // Try to get parent's parent (should be root Stack)
+        const grandParent = parent.getParent?.();
+        rootNavigation = grandParent || parent || navigation;
+      }
+    } catch (e) {
+      rootNavigation = navigation;
+    }
+    
+    // Also get the root navigator using a different method
+    const getRootNavigator = () => {
+      let nav = navigation;
+      // Go up to 3 levels to find root stack
+      for (let i = 0; i < 3; i++) {
+        const parent = nav.getParent?.();
+        if (parent) {
+          nav = parent;
+        } else {
+          break;
+        }
+      }
+      return nav;
+    };
+    const rootNav = getRootNavigator();
 
     if (isDepartmentUser) {
       // For department users, navigate to department issues screen
@@ -180,30 +209,80 @@ const NotificationsScreen = ({ navigation }: any) => {
           canRespond: notification.type === 'resolution_pending'
         };
 
-        // Navigate to ResolutionReview screen (it's in the root Stack Navigator)
-        // Use CommonActions to ensure proper navigation to root stack screen
-        try {
-          if (navigationRef.isReady() && navigationRef.current) {
-            // Use navigationRef for root stack navigation
-            navigationRef.navigate('ResolutionReview', params);
-          } else {
-            // Use CommonActions with current navigation
-            navigation.dispatch(
+        // Navigate to ResolutionReview screen
+        // Use navigationRef which is the root Stack Navigator reference
+        const performNavigation = () => {
+          try {
+            // Primary method: Use navigationRef with CommonActions
+            if (navigationRef.isReady() && navigationRef.current) {
+              navigationRef.dispatch(
+                CommonActions.navigate({
+                  name: 'ResolutionReview',
+                  params: params
+                })
+              );
+              return true;
+            }
+          } catch (error) {
+            console.error('navigationRef navigation failed:', error);
+          }
+          
+          // Fallback: Try using rootNav
+          try {
+            rootNav.dispatch(
               CommonActions.navigate({
                 name: 'ResolutionReview',
                 params: params
               })
             );
+            return true;
+          } catch (error) {
+            console.error('rootNav navigation failed:', error);
           }
-        } catch (navError: any) {
-          console.error('Navigation error:', navError);
-          // Final fallback: try direct navigation
-          try {
-            navigation.navigate('ResolutionReview', params);
-          } catch (fallbackError) {
-            console.error('Fallback navigation error:', fallbackError);
-            Alert.alert('Error', 'Unable to navigate to resolution review. Please try again.');
-          }
+          
+          return false;
+        };
+
+        // Try navigation
+        if (!performNavigation()) {
+          // Wait for navigationRef to be ready
+          const checkInterval = setInterval(() => {
+            if (navigationRef.isReady() && navigationRef.current) {
+              clearInterval(checkInterval);
+              try {
+                navigationRef.dispatch(
+                  CommonActions.navigate({
+                    name: 'ResolutionReview',
+                    params: params
+                  })
+                );
+              } catch (error) {
+                console.error('Delayed navigation failed:', error);
+                Alert.alert(
+                  'Navigation Error',
+                  'Unable to open resolution review. Please try accessing it from the Track Report screen.',
+                  [
+                    {
+                      text: 'Go to Track Report',
+                      onPress: () => {
+                        try {
+                          rootNavigation.navigate('TrackReport', {
+                            prefilledTrackingId: notification.trackingId
+                          });
+                        } catch (e) {
+                          console.error('Fallback navigation failed:', e);
+                        }
+                      }
+                    },
+                    { text: 'Cancel', style: 'cancel' }
+                  ]
+                );
+              }
+            }
+          }, 50);
+          
+          // Clear interval after 2 seconds
+          setTimeout(() => clearInterval(checkInterval), 2000);
         }
       }
     }
@@ -339,7 +418,16 @@ const NotificationsScreen = ({ navigation }: any) => {
       <View style={styles.header}>
         <TouchableOpacity
           style={styles.backButton}
-          onPress={() => navigation.goBack()}
+          onPress={() => {
+            try {
+              navigation.goBack();
+            } catch (e) {
+              // Fallback if goBack fails
+              if (navigationRef.isReady() && navigationRef.current) {
+                navigationRef.goBack();
+              }
+            }
+          }}
         >
           <Feather name="arrow-left" size={24} color="#111827" />
         </TouchableOpacity>
