@@ -359,7 +359,7 @@ export default function DepartmentAnalyticsScreen() {
       good: 12, // %
       poor: 3, // %
     };
-
+    
     return {
       totalReports,
       resolvedReports,
@@ -439,7 +439,7 @@ export default function DepartmentAnalyticsScreen() {
       const idx = day === 0 ? 6 : day - 1; // map to Mon..Sun order
       counts[idx] += 1;
     }
-
+    
     return {
       labels,
       datasets: [{ data: counts }],
@@ -598,11 +598,11 @@ export default function DepartmentAnalyticsScreen() {
                   style={styles.gifIcon}
                   resizeMode="contain"
                 />
-              </View>
+            </View>
               <View style={styles.metricContent}>
                 <Text style={styles.metricNumber}>{byStatus.submitted}</Text>
                 <Text style={styles.metricLabel}>Submitted</Text>
-              </View>
+            </View>
             </View>
           </View>
 
@@ -732,19 +732,19 @@ export default function DepartmentAnalyticsScreen() {
                   <View style={[styles.responseFill, { width: `${departmentAnalytics.responseTime.excellent}%`, backgroundColor: '#10B981' }]} />
                 </View>
                 <Text style={styles.responsePercent}>{departmentAnalytics.responseTime.excellent}%</Text>
-              </View>
+            </View>
               <View style={styles.responseItem}>
                 <Text style={styles.responseLabel}>Good (1-4h)</Text>
                 <View style={styles.responseBar}>
                   <View style={[styles.responseFill, { width: `${departmentAnalytics.responseTime.good}%`, backgroundColor: '#F59E0B' }]} />
-                </View>
+              </View>
                 <Text style={styles.responsePercent}>{departmentAnalytics.responseTime.good}%</Text>
               </View>
               <View style={styles.responseItem}>
                 <Text style={styles.responseLabel}>Poor (&gt; 4h)</Text>
                 <View style={styles.responseBar}>
                   <View style={[styles.responseFill, { width: `${departmentAnalytics.responseTime.poor}%`, backgroundColor: '#EF4444' }]} />
-                </View>
+              </View>
                 <Text style={styles.responsePercent}>{departmentAnalytics.responseTime.poor}%</Text>
               </View>
             </View>

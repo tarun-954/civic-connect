@@ -107,7 +107,9 @@ const ResolutionReviewScreen = ({ navigation, route }: any) => {
   }, [qualityCheck, report]);
 
   const citizenCanRespond =
-    canRespond && (report?.status === 'resolved' || !report);
+    canRespond && 
+    (report?.status === 'resolved' || !report) &&
+    (report?.resolution?.pendingApproval === true || report?.resolution?.approvalStatus === 'pending' || !report);
 
   const handleApprove = async () => {
     if (!reportId) {

@@ -867,23 +867,41 @@ export default function TrackReportScreen({ navigation, route }: any) {
                )}
              </View>
 
-             {report.resolution && (
-               <View style={styles.detailCard}>
-                 <Text style={styles.sectionHeaderTitle}>Resolution</Text>
-                 {report.resolution.description && (
-                   <View style={styles.detailRow}>
-                     <Text style={styles.detailLabel}>Description:</Text>
-                     <Text style={styles.detailValue}>{report.resolution.description}</Text>
-                   </View>
-                 )}
-                 {report.resolution.resolvedBy && (
-                   <View style={styles.detailRow}>
-                     <Text style={styles.detailLabel}>Resolved By:</Text>
-                     <Text style={styles.detailValue}>{report.resolution.resolvedBy}</Text>
-                   </View>
-                 )}
-               </View>
-             )}
+            {report.resolution && (
+              <View style={styles.detailCard}>
+                <Text style={styles.sectionHeaderTitle}>Resolution</Text>
+                {report.resolution.description && (
+                  <View style={styles.detailRow}>
+                    <Text style={styles.detailLabel}>Description:</Text>
+                    <Text style={styles.detailValue}>{report.resolution.description}</Text>
+                  </View>
+                )}
+                {report.resolution.resolvedBy && (
+                  <View style={styles.detailRow}>
+                    <Text style={styles.detailLabel}>Resolved By:</Text>
+                    <Text style={styles.detailValue}>{report.resolution.resolvedBy}</Text>
+                  </View>
+                )}
+                {report.status === 'resolved' && report.resolution?.pendingApproval && (
+                  <TouchableOpacity
+                    style={[styles.cardButton, { marginTop: 12, backgroundColor: '#2563EB' }]}
+                    onPress={() => {
+                      navigation.navigate('ResolutionReview', {
+                        reportId: report.reportId,
+                        trackingId: report.trackingCode,
+                        photos: report.resolution?.resolutionPhotos || [],
+                        qualityCheck: report.resolution?.qualityCheck,
+                        canRespond: true
+                      });
+                    }}
+                  >
+                    <Text style={[styles.cardButtonText, { color: '#FFFFFF' }]}>
+                      Review & Approve Resolution
+                    </Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+            )}
            </View>
          )}
       </ScrollView>

@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Feather } from '@expo/vector-icons';
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect, CommonActions } from '@react-navigation/native';
 import { useAuth } from '../contexts/AuthContext';
 import { NotificationApiService, DepartmentService } from '../services/api';
 import { navigationRef } from '../navigation/navigationRef';
@@ -180,10 +180,30 @@ const NotificationsScreen = ({ navigation }: any) => {
           canRespond: notification.type === 'resolution_pending'
         };
 
-        if (navigationRef.isReady()) {
-          navigationRef.navigate('ResolutionReview', params);
-        } else {
-          rootNavigation.navigate('ResolutionReview', params);
+        // Navigate to ResolutionReview screen (it's in the root Stack Navigator)
+        // Use CommonActions to ensure proper navigation to root stack screen
+        try {
+          if (navigationRef.isReady() && navigationRef.current) {
+            // Use navigationRef for root stack navigation
+            navigationRef.navigate('ResolutionReview', params);
+          } else {
+            // Use CommonActions with current navigation
+            navigation.dispatch(
+              CommonActions.navigate({
+                name: 'ResolutionReview',
+                params: params
+              })
+            );
+          }
+        } catch (navError: any) {
+          console.error('Navigation error:', navError);
+          // Final fallback: try direct navigation
+          try {
+            navigation.navigate('ResolutionReview', params);
+          } catch (fallbackError) {
+            console.error('Fallback navigation error:', fallbackError);
+            Alert.alert('Error', 'Unable to navigate to resolution review. Please try again.');
+          }
         }
       }
     }
