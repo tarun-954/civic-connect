@@ -18,6 +18,7 @@ import { Feather } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import * as Location from 'expo-location';
 import { ApiService, getStoredUserProfile, saveUserProfile, updateProfile } from '../services/api';
+import { navigationRef } from '../navigation/navigationRef';
 import FullScreenReportViewer from '../components/FullScreenReportViewer';
 
 type ReportDetails = {
@@ -886,14 +887,20 @@ export default function TrackReportScreen({ navigation, route }: any) {
                   <TouchableOpacity
                     style={[styles.cardButton, { marginTop: 12, backgroundColor: '#2563EB' }]}
                     onPress={() => {
+                      const params = {
+                        reportId: report.reportId,
+                        trackingId: report.trackingCode,
+                        photos: report.resolution?.resolutionPhotos || [],
+                        qualityCheck: report.resolution?.qualityCheck,
+                        canRespond: true
+                      };
                       try {
-                        navigation.navigate('ResolutionReview', {
-                          reportId: report.reportId,
-                          trackingId: report.trackingCode,
-                          photos: report.resolution?.resolutionPhotos || [],
-                          qualityCheck: report.resolution?.qualityCheck,
-                          canRespond: true
-                        });
+                        // Use root navigator so ResolutionReview is always found
+                        if (navigationRef.isReady()) {
+                          (navigationRef as any).navigate('ResolutionReview', params);
+                        } else {
+                          navigation.navigate('ResolutionReview', params);
+                        }
                       } catch (navError) {
                         console.error('Navigation error:', navError);
                         Alert.alert('Error', 'Unable to navigate to resolution review screen.');

@@ -178,7 +178,7 @@ const NotificationsScreen = ({ navigation: navProp }: any) => {
     if (isDepartmentUser) {
       // For department users, navigate to department issues screen
       if (notification.type === 'new_report' && notification.reportId) {
-        rootNavigation.navigate('DepartmentTabs', { 
+        (rootNavigation as any).navigate('DepartmentTabs', { 
           screen: 'Issues',
           params: { highlightReportId: notification.reportId }
         });
@@ -186,15 +186,15 @@ const NotificationsScreen = ({ navigation: navProp }: any) => {
     } else {
       // For citizen users, navigate to track report
       if (notification.type === 'new_report' && notification.reportId) {
-        rootNavigation.navigate('TrackReport', { 
+        (rootNavigation as any).navigate('TrackReport', { 
           prefilledTrackingId: notification.trackingId 
         });
       } else if (notification.type === 'report_update' && notification.trackingId) {
-        rootNavigation.navigate('TrackReport', { 
+        (rootNavigation as any).navigate('TrackReport', { 
           prefilledTrackingId: notification.trackingId 
         });
       } else if (notification.type === 'report_resolved' && notification.trackingId) {
-        rootNavigation.navigate('TrackReport', { 
+        (rootNavigation as any).navigate('TrackReport', { 
           prefilledTrackingId: notification.trackingId 
         });
       } else if (
@@ -210,11 +210,25 @@ const NotificationsScreen = ({ navigation: navProp }: any) => {
         };
 
         // Navigate to ResolutionReview screen
-        // Use navigationRef which is the root Stack Navigator reference
-        const performNavigation = () => {
+        // SOLUTION: Since NotificationsScreen is in root Stack Navigator (same as ResolutionReview),
+        // we can navigate directly. However, if accessed from tabs, we need to ensure we're using
+        // the root navigator. Use navigationRef which is always the root NavigationContainer.
+        
+        // Wait for navigationRef to be ready, then navigate
+        const attemptNavigation = () => {
+          if (!navigationRef.isReady()) {
+            return false;
+          }
+          
           try {
-            // Primary method: Use navigationRef with CommonActions
-            if (navigationRef.isReady() && navigationRef.current) {
+            // Method 1: Use navigationRef.navigate() - direct root navigator access
+            (navigationRef as any).navigate('ResolutionReview', params);
+            return true;
+          } catch (error1) {
+            console.error('Method 1 (navigationRef.navigate) failed:', error1);
+            
+            try {
+              // Method 2: Use CommonActions with navigationRef
               navigationRef.dispatch(
                 CommonActions.navigate({
                   name: 'ResolutionReview',
@@ -222,68 +236,50 @@ const NotificationsScreen = ({ navigation: navProp }: any) => {
                 })
               );
               return true;
+            } catch (error2) {
+              console.error('Method 2 (CommonActions) failed:', error2);
+              return false;
             }
-          } catch (error) {
-            console.error('navigationRef navigation failed:', error);
           }
-          
-          // Fallback: Try using rootNav
-          try {
-            rootNav.dispatch(
-              CommonActions.navigate({
-                name: 'ResolutionReview',
-                params: params
-              })
-            );
-            return true;
-          } catch (error) {
-            console.error('rootNav navigation failed:', error);
-          }
-          
-          return false;
         };
 
-        // Try navigation
-        if (!performNavigation()) {
-          // Wait for navigationRef to be ready
-          const checkInterval = setInterval(() => {
-            if (navigationRef.isReady() && navigationRef.current) {
-              clearInterval(checkInterval);
-              try {
-                navigationRef.dispatch(
-                  CommonActions.navigate({
-                    name: 'ResolutionReview',
-                    params: params
-                  })
-                );
-              } catch (error) {
-                console.error('Delayed navigation failed:', error);
-                Alert.alert(
-                  'Navigation Error',
-                  'Unable to open resolution review. Please try accessing it from the Track Report screen.',
-                  [
-                    {
-                      text: 'Go to Track Report',
-                      onPress: () => {
-                        try {
-                          rootNavigation.navigate('TrackReport', {
-                            prefilledTrackingId: notification.trackingId
-                          });
-                        } catch (e) {
-                          console.error('Fallback navigation failed:', e);
-                        }
-                      }
-                    },
-                    { text: 'Cancel', style: 'cancel' }
-                  ]
-                );
-              }
-            }
-          }, 50);
-          
-          // Clear interval after 2 seconds
-          setTimeout(() => clearInterval(checkInterval), 2000);
+        // Try navigation immediately
+        if (attemptNavigation()) {
+          return; // Success!
         }
+
+        // If not ready, wait and retry
+        const maxWait = 2000;
+        const startTime = Date.now();
+        const retryInterval = setInterval(() => {
+          if (attemptNavigation()) {
+            clearInterval(retryInterval);
+            return;
+          }
+          
+          if (Date.now() - startTime > maxWait) {
+            clearInterval(retryInterval);
+            // Final fallback: navigate to TrackReport instead
+            Alert.alert(
+              'Navigation Issue',
+              'Opening Track Report screen instead. You can access the resolution review from there.',
+              [
+                {
+                  text: 'OK',
+                  onPress: () => {
+                    try {
+                      (rootNavigation as any).navigate('TrackReport', {
+                        prefilledTrackingId: notification.trackingId || undefined
+                      });
+                    } catch (e) {
+                      console.error('Fallback navigation failed:', e);
+                    }
+                  }
+                }
+              ]
+            );
+          }
+        }, 100);
       }
     }
   };

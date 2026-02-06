@@ -434,7 +434,7 @@ const ResolutionReviewScreen = ({ navigation, route }: any) => {
           </View>
           {proofImages.length === 0 ? (
             <View style={styles.emptyProof}>
-              <Feather name="image-off" size={32} color="#9CA3AF" />
+              <Feather name="image" size={32} color="#9CA3AF" />
               <Text style={styles.emptyProofText}>No proof images were provided.</Text>
             </View>
           ) : (
