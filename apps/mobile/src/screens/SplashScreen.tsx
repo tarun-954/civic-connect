@@ -189,8 +189,8 @@ const styles = StyleSheet.create({
     
   },
   illustrationImage: {
-    width: 210,
-    height: 210,
+    width: 180,
+    height: 180,
     borderRadius: 12,
     shadowColor: '#000',
     shadowOffset: {
@@ -199,7 +199,7 @@ const styles = StyleSheet.create({
     },
     shadowOpacity: 0.1,
     shadowRadius: 4,
-    elevation: 3,
+    
   },
   content: {
     flex: 1,

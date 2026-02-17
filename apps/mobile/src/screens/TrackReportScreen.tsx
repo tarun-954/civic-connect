@@ -42,7 +42,14 @@ type ReportDetails = {
     estimatedResolution?: string;
     assignedAt?: string | Date;
   };
-  resolution?: { description?: string; resolvedAt?: string | Date; resolvedBy?: string };
+  resolution?: {
+    description?: string;
+    resolvedAt?: string | Date;
+    resolvedBy?: string;
+    resolutionPhotos?: Array<{ uri: string; filename?: string; uploadedAt?: string | Date }>;
+    qualityCheck?: { status?: string; confidence?: number; summary?: string; details?: any[] };
+    pendingApproval?: boolean;
+  };
   likes?: string[];
   dislikes?: string[];
   comments?: Array<{ text: string; byName?: string; byEmail?: string; createdAt?: string | Date }>;

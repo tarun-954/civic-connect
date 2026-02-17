@@ -26,12 +26,14 @@ import ReportDetailsScreen from './src/screens/ReportDetailsScreen';
 import DepartmentTrackReportScreen from './src/screens/DepartmentTrackReportScreen';
 import DepartmentsScreen from './src/screens/DepartmentsScreen';
 import ReportPreviewScreen from './src/screens/ReportPreviewScreen';
+import ResolutionReviewScreen from './src/screens/ResolutionReviewScreen';
 import MLAnalysisScreen from './src/screens/MLAnalysisScreen';
 import { useFonts } from 'expo-font';
 import { Text, View, ActivityIndicator } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { AuthProvider, useAuth } from './src/contexts/AuthContext';
 import NotificationService from './src/services/notificationService';
+import { navigationRef } from './src/navigation/navigationRef';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -152,7 +154,7 @@ function AppNavigator() {
   }
 
   return (
-    <NavigationContainer>
+    <NavigationContainer ref={navigationRef}>
       <Stack.Navigator screenOptions={{ headerShown: false }}>
         {isAuthenticated ? (
           <>
@@ -165,6 +167,7 @@ function AppNavigator() {
             <Stack.Screen name="DepartmentTrackReport" component={DepartmentTrackReportScreen} />
             <Stack.Screen name="Departments" component={DepartmentsScreen} />
             <Stack.Screen name="ReportPreview" component={ReportPreviewScreen} />
+            <Stack.Screen name="ResolutionReview" component={ResolutionReviewScreen} />
           </>
         ) : (
           <>
@@ -175,6 +178,7 @@ function AppNavigator() {
             <Stack.Screen name="TrackReport" component={TrackReportScreen} />
             <Stack.Screen name="ReportDetails" component={ReportDetailsScreen} />
             <Stack.Screen name="DepartmentTrackReport" component={DepartmentTrackReportScreen} />
+            <Stack.Screen name="ResolutionReview" component={ResolutionReviewScreen} />
             <Stack.Screen name="MLAnalysis" component={MLAnalysisScreen} />
           </>
         )}
