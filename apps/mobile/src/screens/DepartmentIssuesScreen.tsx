@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, memo } from 'react';
 import { 
   View, 
   Text, 
@@ -359,144 +359,164 @@ export default function DepartmentIssuesScreen({ route, navigation }: any) {
     </TouchableOpacity>
   );
 
-  const renderIssueCard = ({ item }: { item: Report }) => (
-    <TouchableOpacity style={styles.issueCard} activeOpacity={0.8}>
-      {/* Header with Priority and Status */}
-      <View style={styles.cardHeader}>
-        <View style={styles.priorityContainer}>
-          <View style={[styles.priorityBadge, { backgroundColor: getPriorityColor(item.priority) }]}>
-            <Feather name={getPriorityIcon(item.priority) as any} size={12} color="#fff" />
-            <Text style={styles.priorityText}>{item.priority || 'Medium'}</Text>
-          </View>
-        </View>
-        <View style={[styles.statusBadge, { backgroundColor: getStatusColor(item.status) }]}>
-          <Feather name={getStatusIcon(item.status) as any} size={12} color="#fff" />
-          <Text style={styles.statusText}>
-            {statusMap[item.status] || 'Unknown'}
-          </Text>
-        </View>
-      </View>
+  // Memoized issue card component for better performance
+  const IssueCard = memo(({ 
+    item, 
+    onUpdateStatus, 
+    onOpenResolutionModal, 
+    onViewDetails, 
+    onOpenGoogleMaps 
+  }: { 
+    item: Report; 
+    onUpdateStatus: (reportId: string, status: string) => void;
+    onOpenResolutionModal: (item: Report) => void;
+    onViewDetails: (item: Report) => void;
+    onOpenGoogleMaps: (lat: number, lng: number, address?: string) => void;
+  }) => {
+    const priorityColor = useMemo(() => getPriorityColor(item.priority), [item.priority]);
+    const statusColor = useMemo(() => getStatusColor(item.status), [item.status]);
+    const imageUri = useMemo(() => 
+      item.issue.photos && item.issue.photos.length > 0 
+        ? item.issue.photos[0].uri 
+        : 'https://via.placeholder.com/300x200/6B7280/FFFFFF?text=No+Image',
+      [item.issue.photos]
+    );
+    const formattedDate = useMemo(() => formatDate(item.submittedAt), [item.submittedAt]);
 
-      {/* Issue Image */}
-      <View style={styles.imageContainer}>
-        <Image 
-          source={{ 
-            uri: item.issue.photos && item.issue.photos.length > 0 
-              ? item.issue.photos[0].uri 
-              : 'https://via.placeholder.com/300x200/6B7280/FFFFFF?text=No+Image'
-          }} 
-          style={styles.issueImage} 
-        />
-        {item.issue.photos && item.issue.photos.length > 1 && (
-          <View style={styles.photoCount}>
-            <Feather name="camera" size={12} color="#fff" />
-            <Text style={styles.photoCountText}>+{item.issue.photos.length - 1}</Text>
+    return (
+      <TouchableOpacity style={styles.issueCard} activeOpacity={0.8}>
+        {/* Header with Priority and Status */}
+        <View style={styles.cardHeader}>
+          <View style={styles.priorityContainer}>
+            <View style={[styles.priorityBadge, { backgroundColor: priorityColor }]}>
+              <Feather name={getPriorityIcon(item.priority) as any} size={12} color="#fff" />
+              <Text style={styles.priorityText}>{item.priority || 'Medium'}</Text>
+            </View>
           </View>
-        )}
-      </View>
-
-      {/* Issue Details */}
-      <View style={styles.cardContent}>
-        <Text style={styles.issueTitle}>{item.issue.subcategory}</Text>
-        <Text style={styles.issueCategory}>{item.issue.category}</Text>
-        
-        <Text style={styles.issueDescription} numberOfLines={2}>
-          {item.issue.description}
-        </Text>
-
-        {/* Issue Meta Info */}
-        <View style={styles.metaContainer}>
-          <View style={styles.metaItem}>
-            <Feather name="user" size={14} color="#6B7280" />
-            <Text style={styles.metaText}>{item.reporter.name}</Text>
-          </View>
-          <View style={styles.metaItem}>
-            <Feather name="map-pin" size={14} color="#6B7280" />
-            <Text style={styles.metaText} numberOfLines={1}>
-              {item.location.address || 'Location not specified'}
+          <View style={[styles.statusBadge, { backgroundColor: statusColor }]}>
+            <Feather name={getStatusIcon(item.status) as any} size={12} color="#fff" />
+            <Text style={styles.statusText}>
+              {statusMap[item.status] || 'Unknown'}
             </Text>
           </View>
-          <View style={styles.metaItem}>
-            <Feather name="hash" size={14} color="#6B7280" />
-            <Text style={styles.metaText}>{item.trackingCode}</Text>
-          </View>
-          <View style={styles.metaItem}>
-            <Feather name="clock" size={14} color="#6B7280" />
-            <Text style={styles.metaText}>{formatDate(item.submittedAt)}</Text>
-          </View>
         </View>
 
-        {/* Action Buttons */}
-        <View style={styles.actionsContainer}>
-          {item.status === 'submitted' && (
-            <StatusButton
-              label="Start Work"
-              color="#F59E0B"
-              icon="play"
-              onPress={() => updateStatus(item.reportId, 'in_progress')}
-            />
+        {/* Issue Image */}
+        <View style={styles.imageContainer}>
+          <Image 
+            source={{ uri: imageUri }} 
+            style={styles.issueImage} 
+          />
+          {item.issue.photos && item.issue.photos.length > 1 && (
+            <View style={styles.photoCount}>
+              <Feather name="camera" size={12} color="#fff" />
+              <Text style={styles.photoCountText}>+{item.issue.photos.length - 1}</Text>
+            </View>
           )}
-          {item.status === 'in_progress' && (
-            <StatusButton
-              label="Submit Proof"
-              color="#10B981"
-              icon="check"
-              onPress={() => openResolutionModal(item)}
-            />
-          )}
-          {item.status === 'resolved' && (
-            <StatusButton
-              label="Update Proof"
-              color="#3B82F6"
-              icon="upload-cloud"
-              onPress={() => openResolutionModal(item)}
-            />
-          )}
-          <TouchableOpacity 
-            style={styles.viewButton}
-            onPress={() => handleViewDetails(item)}
-          >
-            <Feather name="eye" size={16} color="#fff" />
-            <Text style={styles.viewButtonText}>View Details</Text>
-          </TouchableOpacity>
+        </View>
+
+        {/* Issue Details */}
+        <View style={styles.cardContent}>
+          <Text style={styles.issueTitle}>{item.issue.subcategory}</Text>
+          <Text style={styles.issueCategory}>{item.issue.category}</Text>
           
-          {/* Google Maps Button */}
-          <TouchableOpacity 
-            style={styles.mapsButton}
-            onPress={() => openGoogleMaps(item.location.latitude, item.location.longitude, item.location.address)}
-          >
-            <Feather name="navigation" size={16} color="#EF4444" />
-            <Text style={styles.mapsButtonText}>Navigate</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-      {(item.status === 'resolved' || item.status === 'closed') && (
-        <View
-          style={[
-            styles.resolutionSummary,
-            item.status === 'resolved'
-              ? styles.resolutionPending
-              : styles.resolutionApproved
-          ]}
-        >
-          <View style={styles.resolutionSummaryIcon}>
-            <Feather
-              name={item.status === 'resolved' ? 'clock' : 'check-circle'}
-              size={16}
-              color={item.status === 'resolved' ? '#3B82F6' : '#10B981'}
-            />
-          </View>
-          <View style={styles.resolutionSummaryText}>
-            <Text style={styles.resolutionSummaryTitle}>
-              {item.status === 'resolved'
-                ? 'Awaiting Citizen Approval'
-                : 'Closed by Citizen'}
-            </Text>
-            {item.resolution?.qualityCheck?.summary && (
-              <Text style={styles.resolutionSummarySubtitle}>
-                AI review: {item.resolution.qualityCheck.summary}
+          <Text style={styles.issueDescription} numberOfLines={2}>
+            {item.issue.description}
+          </Text>
+
+          {/* Issue Meta Info */}
+          <View style={styles.metaContainer}>
+            <View style={styles.metaItem}>
+              <Feather name="user" size={14} color="#6B7280" />
+              <Text style={styles.metaText}>{item.reporter.name}</Text>
+            </View>
+            <View style={styles.metaItem}>
+              <Feather name="map-pin" size={14} color="#6B7280" />
+              <Text style={styles.metaText} numberOfLines={1}>
+                {item.location.address || 'Location not specified'}
               </Text>
+            </View>
+            <View style={styles.metaItem}>
+              <Feather name="hash" size={14} color="#6B7280" />
+              <Text style={styles.metaText}>{item.trackingCode}</Text>
+            </View>
+            <View style={styles.metaItem}>
+              <Feather name="clock" size={14} color="#6B7280" />
+              <Text style={styles.metaText}>{formattedDate}</Text>
+            </View>
+          </View>
+
+          {/* Action Buttons */}
+          <View style={styles.actionsContainer}>
+            {item.status === 'submitted' && (
+              <StatusButton
+                label="Start Work"
+                color="#F59E0B"
+                icon="play"
+                onPress={() => onUpdateStatus(item.reportId, 'in_progress')}
+              />
             )}
+            {item.status === 'in_progress' && (
+              <StatusButton
+                label="Submit Proof"
+                color="#10B981"
+                icon="check"
+                onPress={() => onOpenResolutionModal(item)}
+              />
+            )}
+            {item.status === 'resolved' && (
+              <StatusButton
+                label="Update Proof"
+                color="#3B82F6"
+                icon="upload-cloud"
+                onPress={() => onOpenResolutionModal(item)}
+              />
+            )}
+            <TouchableOpacity 
+              style={styles.viewButton}
+              onPress={() => onViewDetails(item)}
+            >
+              <Feather name="eye" size={16} color="#fff" />
+              <Text style={styles.viewButtonText}>View Details</Text>
+            </TouchableOpacity>
+            
+            {/* Google Maps Button */}
+            <TouchableOpacity 
+              style={styles.mapsButton}
+              onPress={() => onOpenGoogleMaps(item.location.latitude, item.location.longitude, item.location.address)}
+            >
+              <Feather name="navigation" size={16} color="#EF4444" />
+              <Text style={styles.mapsButtonText}>Navigate</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+        {(item.status === 'resolved' || item.status === 'closed') && (
+          <View
+            style={[
+              styles.resolutionSummary,
+              item.status === 'resolved'
+                ? styles.resolutionPending
+                : styles.resolutionApproved
+            ]}
+          >
+            <View style={styles.resolutionSummaryIcon}>
+              <Feather
+                name={item.status === 'resolved' ? 'clock' : 'check-circle'}
+                size={16}
+                color={item.status === 'resolved' ? '#3B82F6' : '#10B981'}
+              />
+            </View>
+            <View style={styles.resolutionSummaryText}>
+              <Text style={styles.resolutionSummaryTitle}>
+                {item.status === 'resolved'
+                  ? 'Awaiting Citizen Approval'
+                  : 'Closed by Citizen'}
+              </Text>
+              {item.resolution?.qualityCheck?.summary && (
+                <Text style={styles.resolutionSummarySubtitle}>
+                  AI review: {item.resolution.qualityCheck.summary}
+                </Text>
+              )}
             <Text style={styles.resolutionSummarySubtitle}>
               {item.status === 'resolved'
                 ? `Submitted ${item.resolution?.resolvedAt ? formatDate(item.resolution.resolvedAt) : 'recently'}`
@@ -509,9 +529,22 @@ export default function DepartmentIssuesScreen({ route, navigation }: any) {
             )}
           </View>
         </View>
-      )}
-    </TouchableOpacity>
-  );
+        )}
+      </TouchableOpacity>
+    );
+  });
+
+  const renderIssueCard = useCallback(({ item }: { item: Report }) => {
+    return (
+      <IssueCard
+        item={item}
+        onUpdateStatus={updateStatus}
+        onOpenResolutionModal={openResolutionModal}
+        onViewDetails={handleViewDetails}
+        onOpenGoogleMaps={openGoogleMaps}
+      />
+    );
+  }, [updateStatus, openResolutionModal, handleViewDetails, openGoogleMaps]);
 
   const renderEmptyState = () => (
     <View style={styles.emptyContainer}>
@@ -784,19 +817,29 @@ export default function DepartmentIssuesScreen({ route, navigation }: any) {
       <FlatList
         data={filteredReports}
         keyExtractor={(item) => item._id}
-          renderItem={renderIssueCard}
+        renderItem={renderIssueCard}
         refreshControl={
-            <RefreshControl 
-              refreshing={refreshing} 
-              onRefresh={onRefresh}
-              colors={['#3B82F6']}
-              tintColor="#3B82F6"
-            />
-          }
-          contentContainerStyle={styles.listContainer}
-          showsVerticalScrollIndicator={false}
-          ListEmptyComponent={renderEmptyState}
-        />
+          <RefreshControl 
+            refreshing={refreshing} 
+            onRefresh={onRefresh}
+            colors={['#3B82F6']}
+            tintColor="#3B82F6"
+          />
+        }
+        contentContainerStyle={styles.listContainer}
+        showsVerticalScrollIndicator={false}
+        ListEmptyComponent={renderEmptyState}
+        removeClippedSubviews={true}
+        initialNumToRender={8}
+        maxToRenderPerBatch={8}
+        windowSize={10}
+        updateCellsBatchingPeriod={50}
+        getItemLayout={(data, index) => ({
+          length: 400, // Approximate item height
+          offset: 400 * index,
+          index,
+        })}
+      />
       )}
     </SafeAreaView>
   );

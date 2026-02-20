@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState, useMemo, memo } from 'react';
 import {
   SafeAreaView,
   View,
@@ -334,18 +334,21 @@ const NotificationsScreen = ({ navigation: navProp }: any) => {
     }
   };
 
-  const renderNotification = ({ item }: { item: Notification }) => {
+  // Memoized notification item component for better performance
+  const NotificationItem = memo(({ item, onPress }: { item: Notification; onPress: (item: Notification) => void }) => {
     const priorityValue = item.priority || 'medium';
-    const icon = getNotificationIcon(item.type, priorityValue);
-    const priorityColor = getPriorityColor(priorityValue);
+    const icon = useMemo(() => getNotificationIcon(item.type, priorityValue), [item.type, priorityValue]);
+    const priorityColor = useMemo(() => getPriorityColor(priorityValue), [priorityValue]);
+    const formattedDate = useMemo(() => formatDate(item.createdAt), [item.createdAt]);
+    const isUnread = useMemo(() => !(item.isRead || item.read), [item.isRead, item.read]);
 
     return (
       <TouchableOpacity
         style={[
           styles.notificationItem,
-          !(item.isRead || item.read) && styles.unreadNotification
+          isUnread && styles.unreadNotification
         ]}
-        onPress={() => handleNotificationPress(item)}
+        onPress={() => onPress(item)}
         activeOpacity={0.7}
       >
         <View style={styles.notificationContent}>
@@ -357,7 +360,7 @@ const NotificationsScreen = ({ navigation: navProp }: any) => {
             <View style={styles.headerRow}>
               <Text style={[
                 styles.notificationTitle,
-                !(item.isRead || item.read) && styles.unreadText
+                isUnread && styles.unreadText
               ]}>
                 {item.title}
               </Text>
@@ -380,7 +383,7 @@ const NotificationsScreen = ({ navigation: navProp }: any) => {
             
             <View style={styles.footerRow}>
               <Text style={styles.timestamp}>
-                {formatDate(item.createdAt)}
+                {formattedDate}
               </Text>
               {item.category && (
                 <View style={styles.categoryTag}>
@@ -391,10 +394,14 @@ const NotificationsScreen = ({ navigation: navProp }: any) => {
           </View>
         </View>
         
-        {!(item.isRead || item.read) && <View style={styles.unreadIndicator} />}
+        {isUnread && <View style={styles.unreadIndicator} />}
       </TouchableOpacity>
     );
-  };
+  });
+
+  const renderNotification = useCallback(({ item }: { item: Notification }) => {
+    return <NotificationItem item={item} onPress={handleNotificationPress} />;
+  }, [handleNotificationPress]);
 
   const renderEmptyState = () => (
     <View style={styles.emptyState}>
@@ -456,6 +463,16 @@ const NotificationsScreen = ({ navigation: navProp }: any) => {
         }
         ListEmptyComponent={renderEmptyState}
         showsVerticalScrollIndicator={false}
+        removeClippedSubviews={true}
+        initialNumToRender={10}
+        maxToRenderPerBatch={10}
+        windowSize={10}
+        updateCellsBatchingPeriod={50}
+        getItemLayout={(data, index) => ({
+          length: 100, // Approximate item height
+          offset: 100 * index,
+          index,
+        })}
       />
     </SafeAreaView>
   );
