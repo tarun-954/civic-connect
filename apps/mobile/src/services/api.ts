@@ -712,6 +712,26 @@ export class DepartmentService {
     }
   }
 
+  // Get all departments with details (public endpoint, no auth required)
+  static async getDepartments(): Promise<any> {
+    try {
+      const response = await fetch(`${this.baseURL}/departments/list`);
+      if (!response.ok) {
+        // If 404, the route doesn't exist yet (backend not updated)
+        if (response.status === 404) {
+          throw new Error('Route not found');
+        }
+        const result = await response.json();
+        throw new Error(result.message || 'Failed to fetch departments');
+      }
+      const result = await response.json();
+      return result;
+    } catch (error: any) {
+      // Re-throw to let caller handle gracefully
+      throw error;
+    }
+  }
+
   // Get department officials (public endpoint, no auth required)
   static async getOfficials(): Promise<any> {
     try {

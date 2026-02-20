@@ -150,6 +150,55 @@ router.post('/login', async (req, res) => {
   }
 });
 
+// Get all departments with details (public endpoint - must be before parameterized routes)
+router.get('/list', async (req, res) => {
+  try {
+    const departments = await Department.find({ active: { $ne: false } })
+      .select('name code location foundedDate leaderName leaderEmail leaderPhone')
+      .sort({ name: 1 });
+    
+    res.status(200).json({
+      status: 'success',
+      data: { departments: departments || [] }
+    });
+  } catch (e) {
+    console.error('Error fetching departments:', e);
+    res.status(500).json({
+      status: 'error',
+      message: 'Failed to fetch departments',
+      data: { departments: [] }
+    });
+  }
+});
+
+// Get department officials (public endpoint - must be before parameterized routes)
+router.get('/officials', async (req, res) => {
+  try {
+    const User = require('../models/User');
+    const officials = await User.find({ 
+      role: { $in: ['supervisor', 'worker'] },
+      department: { $ne: null }
+    })
+    .select('name email phone department role designation imageUrl')
+    .sort({ role: -1, name: 1 }) // supervisors first
+    .limit(20); // limit to 20 officials
+    
+    console.log(`📊 Found ${officials.length} officials in database`);
+    
+    res.status(200).json({ 
+      status: 'success', 
+      data: { officials: officials || [] } 
+    });
+  } catch (e) {
+    console.error('Error fetching officials:', e);
+    res.status(500).json({ 
+      status: 'error', 
+      message: 'Failed to fetch officials',
+      data: { officials: [] }
+    });
+  }
+});
+
 // List issues assigned to department (by code)
 router.get('/issues', requireDepartment, async (req, res) => {
   try {
@@ -368,33 +417,6 @@ router.post('/ml/ocr-priority', requireDepartment, async (req, res) => {
   return res.status(200).json({ status: 'success', data: { text: 'DANGER HIGH VOLTAGE', priority: 'urgent', confidence: 0.9 } });
 });
 
-// Get department officials (public endpoint for carousel)
-router.get('/officials', async (req, res) => {
-  try {
-    const User = require('../models/User');
-    const officials = await User.find({ 
-      role: { $in: ['supervisor', 'worker'] },
-      department: { $ne: null }
-    })
-    .select('name email phone department role designation imageUrl')
-    .sort({ role: -1, name: 1 }) // supervisors first
-    .limit(20); // limit to 20 officials
-    
-    console.log(`📊 Found ${officials.length} officials in database`);
-    
-    res.status(200).json({ 
-      status: 'success', 
-      data: { officials: officials || [] } 
-    });
-  } catch (e) {
-    console.error('Error fetching officials:', e);
-    res.status(500).json({ 
-      status: 'error', 
-      message: 'Failed to fetch officials',
-      data: { officials: [] }
-    });
-  }
-});
 
 module.exports = router;
 

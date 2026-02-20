@@ -8,6 +8,12 @@ const departmentSchema = new mongoose.Schema({
   passwordHash: { type: String, required: true },
   roles: { type: [String], default: ['department'] },
   active: { type: Boolean, default: true },
+  // Additional department info
+  location: { type: String, default: null }, // Address/location of department office
+  foundedDate: { type: Date, default: null }, // When the department was established
+  leaderName: { type: String, default: null }, // Name of department head/leader
+  leaderEmail: { type: String, default: null }, // Email of department leader
+  leaderPhone: { type: String, default: null }, // Phone of department leader
   createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: Date.now },
   // Simple notification store; for production use a dedicated collection/queue

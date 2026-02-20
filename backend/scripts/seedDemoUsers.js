@@ -31,237 +31,372 @@ const getRandomIndianAvatar = (index) => {
 };
 
 // Demo users for each department with Indian names and phone numbers
+// Department names match ReportIssueScreen categories
 const demoUsers = [
   // Road Department
   {
     name: 'Rajesh Kumar',
-    email: 'rajesh.kumar@roaddepartment.gov',
+    email: 'rajesh.kumar@road.gov',
     phone: '+91 98765 43210',
     password: 'password123',
-    department: 'ROAD',
+    department: 'Road',
     role: 'supervisor',
-    designation: 'Senior Road Engineer',
+    designation: 'Head of Road Department',
     imageUrl: getRandomIndianAvatar(0)
   },
   {
     name: 'Vikram Singh',
-    email: 'vikram.singh@roaddepartment.gov',
+    email: 'vikram.singh@road.gov',
     phone: '+91 98765 43211',
     password: 'password123',
-    department: 'ROAD',
+    department: 'Road',
     role: 'worker',
     designation: 'Road Maintenance Worker',
     imageUrl: getRandomIndianAvatar(1)
+  },
+  {
+    name: 'Anjali Mehta',
+    email: 'anjali.mehta@road.gov',
+    phone: '+91 98765 43212',
+    password: 'password123',
+    department: 'Road',
+    role: 'worker',
+    designation: 'Road Inspector',
+    imageUrl: getRandomIndianAvatar(2)
+  },
+  {
+    name: 'Rohit Sharma',
+    email: 'rohit.sharma@road.gov',
+    phone: '+91 98765 43213',
+    password: 'password123',
+    department: 'Road',
+    role: 'worker',
+    designation: 'Construction Supervisor',
+    imageUrl: getRandomIndianAvatar(3)
   },
   
   // Electricity Department
   {
     name: 'Priya Sharma',
     email: 'priya.sharma@electricity.gov',
-    phone: '+91 98765 43212',
+    phone: '+91 98765 43220',
     password: 'password123',
-    department: 'ELEC',
+    department: 'Electricity',
     role: 'supervisor',
-    designation: 'Electrical Supervisor',
-    imageUrl: getRandomIndianAvatar(2)
+    designation: 'Head of Electricity Department',
+    imageUrl: getRandomIndianAvatar(4)
   },
   {
     name: 'Amit Patel',
     email: 'amit.patel@electricity.gov',
-    phone: '+91 98765 43213',
+    phone: '+91 98765 43221',
     password: 'password123',
-    department: 'ELEC',
+    department: 'Electricity',
     role: 'worker',
-    designation: 'Electrician',
-    imageUrl: getRandomIndianAvatar(3)
+    designation: 'Senior Electrician',
+    imageUrl: getRandomIndianAvatar(5)
+  },
+  {
+    name: 'Sneha Reddy',
+    email: 'sneha.reddy@electricity.gov',
+    phone: '+91 98765 43222',
+    password: 'password123',
+    department: 'Electricity',
+    role: 'worker',
+    designation: 'Electrical Technician',
+    imageUrl: getRandomIndianAvatar(6)
+  },
+  {
+    name: 'Karan Malhotra',
+    email: 'karan.malhotra@electricity.gov',
+    phone: '+91 98765 43223',
+    password: 'password123',
+    department: 'Electricity',
+    role: 'worker',
+    designation: 'Power Line Worker',
+    imageUrl: getRandomIndianAvatar(7)
+  },
+  
+  // Sewage Department
+  {
+    name: 'Meera Nair',
+    email: 'meera.nair@sewage.gov',
+    phone: '+91 98765 43230',
+    password: 'password123',
+    department: 'Sewage',
+    role: 'supervisor',
+    designation: 'Head of Sewage Department',
+    imageUrl: getRandomIndianAvatar(8)
+  },
+  {
+    name: 'Anil Kumar',
+    email: 'anil.kumar@sewage.gov',
+    phone: '+91 98765 43231',
+    password: 'password123',
+    department: 'Sewage',
+    role: 'worker',
+    designation: 'Sewage Maintenance Worker',
+    imageUrl: getRandomIndianAvatar(9)
+  },
+  {
+    name: 'Divya Iyer',
+    email: 'divya.iyer@sewage.gov',
+    phone: '+91 98765 43232',
+    password: 'password123',
+    department: 'Sewage',
+    role: 'worker',
+    designation: 'Drainage Inspector',
+    imageUrl: getRandomIndianAvatar(10)
+  },
+  
+  // Cleanliness Department
+  {
+    name: 'Sunita Desai',
+    email: 'sunita.desai@cleanliness.gov',
+    phone: '+91 98765 43240',
+    password: 'password123',
+    department: 'Cleanliness',
+    role: 'supervisor',
+    designation: 'Head of Cleanliness Department',
+    imageUrl: getRandomIndianAvatar(11)
+  },
+  {
+    name: 'Ramesh Joshi',
+    email: 'ramesh.joshi@cleanliness.gov',
+    phone: '+91 98765 43241',
+    password: 'password123',
+    department: 'Cleanliness',
+    role: 'worker',
+    designation: 'Sanitation Worker',
+    imageUrl: getRandomIndianAvatar(12)
+  },
+  {
+    name: 'Lakshmi Pillai',
+    email: 'lakshmi.pillai@cleanliness.gov',
+    phone: '+91 98765 43242',
+    password: 'password123',
+    department: 'Cleanliness',
+    role: 'worker',
+    designation: 'Street Cleaner',
+    imageUrl: getRandomIndianAvatar(13)
+  },
+  {
+    name: 'Mohan Rao',
+    email: 'mohan.rao@cleanliness.gov',
+    phone: '+91 98765 43243',
+    password: 'password123',
+    department: 'Cleanliness',
+    role: 'worker',
+    designation: 'Public Area Cleaner',
+    imageUrl: getRandomIndianAvatar(14)
+  },
+  
+  // Dustbin Full Department
+  {
+    name: 'Deepak Verma',
+    email: 'deepak.verma@dustbin.gov',
+    phone: '+91 98765 43250',
+    password: 'password123',
+    department: 'Dustbin Full',
+    role: 'supervisor',
+    designation: 'Head of Waste Management',
+    imageUrl: getRandomIndianAvatar(15)
+  },
+  {
+    name: 'Ravi Gupta',
+    email: 'ravi.gupta@dustbin.gov',
+    phone: '+91 98765 43251',
+    password: 'password123',
+    department: 'Dustbin Full',
+    role: 'worker',
+    designation: 'Waste Collection Worker',
+    imageUrl: getRandomIndianAvatar(16)
+  },
+  {
+    name: 'Pooja Singh',
+    email: 'pooja.singh@dustbin.gov',
+    phone: '+91 98765 43252',
+    password: 'password123',
+    department: 'Dustbin Full',
+    role: 'worker',
+    designation: 'Garbage Truck Driver',
+    imageUrl: getRandomIndianAvatar(17)
+  },
+  {
+    name: 'Nikhil Tiwari',
+    email: 'nikhil.tiwari@dustbin.gov',
+    phone: '+91 98765 43253',
+    password: 'password123',
+    department: 'Dustbin Full',
+    role: 'worker',
+    designation: 'Waste Segregation Worker',
+    imageUrl: getRandomIndianAvatar(0)
   },
   
   // Water Department
   {
     name: 'Suresh Reddy',
     email: 'suresh.reddy@water.gov',
-    phone: '+91 98765 43214',
+    phone: '+91 98765 43260',
     password: 'password123',
-    department: 'WATER',
+    department: 'Water',
     role: 'supervisor',
-    designation: 'Water Supply Manager',
-    imageUrl: getRandomIndianAvatar(4)
+    designation: 'Head of Water Department',
+    imageUrl: getRandomIndianAvatar(1)
   },
   {
     name: 'Kiran Desai',
     email: 'kiran.desai@water.gov',
-    phone: '+91 98765 43215',
+    phone: '+91 98765 43261',
     password: 'password123',
-    department: 'WATER',
+    department: 'Water',
     role: 'worker',
-    designation: 'Water Technician',
-    imageUrl: getRandomIndianAvatar(5)
+    designation: 'Water Supply Technician',
+    imageUrl: getRandomIndianAvatar(2)
+  },
+  {
+    name: 'Arjun Menon',
+    email: 'arjun.menon@water.gov',
+    phone: '+91 98765 43262',
+    password: 'password123',
+    department: 'Water',
+    role: 'worker',
+    designation: 'Pipe Maintenance Worker',
+    imageUrl: getRandomIndianAvatar(3)
+  },
+  {
+    name: 'Radha Krishnan',
+    email: 'radha.krishnan@water.gov',
+    phone: '+91 98765 43263',
+    password: 'password123',
+    department: 'Water',
+    role: 'worker',
+    designation: 'Water Quality Inspector',
+    imageUrl: getRandomIndianAvatar(4)
   },
   
-  // Sanitation Department
-  {
-    name: 'Meera Nair',
-    email: 'meera.nair@sanitation.gov',
-    phone: '+91 98765 43216',
-    password: 'password123',
-    department: 'SANIT',
-    role: 'supervisor',
-    designation: 'Sanitation Officer',
-    imageUrl: getRandomIndianAvatar(6)
-  },
-  {
-    name: 'Anil Kumar',
-    email: 'anil.kumar@sanitation.gov',
-    phone: '+91 98765 43217',
-    password: 'password123',
-    department: 'SANIT',
-    role: 'worker',
-    designation: 'Sanitation Worker',
-    imageUrl: getRandomIndianAvatar(7)
-  },
-  
-  // Public Safety Department
-  {
-    name: 'Deepak Verma',
-    email: 'deepak.verma@safety.gov',
-    phone: '+91 98765 43218',
-    password: 'password123',
-    department: 'SAFETY',
-    role: 'supervisor',
-    designation: 'Safety Inspector',
-    imageUrl: getRandomIndianAvatar(8)
-  },
-  {
-    name: 'Ravi Gupta',
-    email: 'ravi.gupta@safety.gov',
-    phone: '+91 98765 43219',
-    password: 'password123',
-    department: 'SAFETY',
-    role: 'worker',
-    designation: 'Safety Officer',
-    imageUrl: getRandomIndianAvatar(9)
-  },
-  
-  // Healthcare Department
-  {
-    name: 'Dr. Kavita Rao',
-    email: 'kavita.rao@health.gov',
-    phone: '+91 98765 43220',
-    password: 'password123',
-    department: 'HEALTH',
-    role: 'supervisor',
-    designation: 'Chief Medical Officer',
-    imageUrl: getRandomIndianAvatar(10)
-  },
-  {
-    name: 'Sunita Iyer',
-    email: 'sunita.iyer@health.gov',
-    phone: '+91 98765 43221',
-    password: 'password123',
-    department: 'HEALTH',
-    role: 'worker',
-    designation: 'Health Worker',
-    imageUrl: getRandomIndianAvatar(11)
-  },
-  
-  // Education Department
-  {
-    name: 'Prof. Ramesh Menon',
-    email: 'ramesh.menon@education.gov',
-    phone: '+91 98765 43222',
-    password: 'password123',
-    department: 'EDUC',
-    role: 'supervisor',
-    designation: 'Education Officer',
-    imageUrl: getRandomIndianAvatar(12)
-  },
-  {
-    name: 'Lakshmi Pillai',
-    email: 'lakshmi.pillai@education.gov',
-    phone: '+91 98765 43223',
-    password: 'password123',
-    department: 'EDUC',
-    role: 'worker',
-    designation: 'Field Education Coordinator',
-    imageUrl: getRandomIndianAvatar(13)
-  },
-  
-  // Environment Department
-  {
-    name: 'Dr. Arjun Joshi',
-    email: 'arjun.joshi@environment.gov',
-    phone: '+91 98765 43224',
-    password: 'password123',
-    department: 'ENV',
-    role: 'supervisor',
-    designation: 'Environmental Scientist',
-    imageUrl: getRandomIndianAvatar(14)
-  },
-  {
-    name: 'Rashmi Malhotra',
-    email: 'rashmi.malhotra@environment.gov',
-    phone: '+91 98765 43225',
-    password: 'password123',
-    department: 'ENV',
-    role: 'worker',
-    designation: 'Environment Inspector',
-    imageUrl: getRandomIndianAvatar(15)
-  },
-  
-  // Transportation Department
+  // Streetlight Department
   {
     name: 'Naveen Choudhury',
-    email: 'naveen.choudhury@transportation.gov',
-    phone: '+91 98765 43226',
+    email: 'naveen.choudhury@streetlight.gov',
+    phone: '+91 98765 43270',
     password: 'password123',
-    department: 'TRANS',
+    department: 'Streetlight',
     role: 'supervisor',
-    designation: 'Traffic Manager',
-    imageUrl: getRandomIndianAvatar(16)
+    designation: 'Head of Streetlight Department',
+    imageUrl: getRandomIndianAvatar(5)
   },
   {
     name: 'Manoj Tiwari',
-    email: 'manoj.tiwari@transportation.gov',
-    phone: '+91 98765 43227',
+    email: 'manoj.tiwari@streetlight.gov',
+    phone: '+91 98765 43271',
     password: 'password123',
-    department: 'TRANS',
+    department: 'Streetlight',
     role: 'worker',
-    designation: 'Transport Officer',
-    imageUrl: getRandomIndianAvatar(17)
-  },
-  
-  // Housing Department
-  {
-    name: 'Padmini Krishnan',
-    email: 'padmini.krishnan@housing.gov',
-    phone: '+91 98765 43228',
-    password: 'password123',
-    department: 'HOUSING',
-    role: 'supervisor',
-    designation: 'Housing Director',
-    imageUrl: getRandomIndianAvatar(0)
+    designation: 'Streetlight Maintenance Worker',
+    imageUrl: getRandomIndianAvatar(6)
   },
   {
-    name: 'Dinesh Nair',
-    email: 'dinesh.nair@housing.gov',
-    phone: '+91 98765 43229',
+    name: 'Sarika Nair',
+    email: 'sarika.nair@streetlight.gov',
+    phone: '+91 98765 43272',
     password: 'password123',
-    department: 'HOUSING',
+    department: 'Streetlight',
     role: 'worker',
-    designation: 'Housing Officer',
-    imageUrl: getRandomIndianAvatar(1)
+    designation: 'Electrical Repair Technician',
+    imageUrl: getRandomIndianAvatar(7)
+  },
+  {
+    name: 'Vishal Kumar',
+    email: 'vishal.kumar@streetlight.gov',
+    phone: '+91 98765 43273',
+    password: 'password123',
+    department: 'Streetlight',
+    role: 'worker',
+    designation: 'Pole Installation Worker',
+    imageUrl: getRandomIndianAvatar(8)
   }
 ];
 
-// Department information (aligned with mobile app codes)
+// Department information matching ReportIssueScreen categories
 const departments = [
-  { name: 'Road Department', code: 'ROAD_DEPT', email: 'admin@roaddepartment.gov', password: 'admin123' },
-  { name: 'Electricity Department', code: 'ELECTRICITY_DEPT', email: 'admin@electricity.gov', password: 'admin123' },
-  { name: 'Sewage Department', code: 'SEWAGE_DEPT', email: 'admin@sewage.gov', password: 'admin123' },
-  { name: 'Cleanliness Department', code: 'CLEANLINESS_DEPT', email: 'admin@cleanliness.gov', password: 'admin123' },
-  { name: 'Waste Management', code: 'WASTE_MGMT', email: 'admin@wastemgmt.gov', password: 'admin123' },
-  { name: 'Water Department', code: 'WATER_DEPT', email: 'admin@water.gov', password: 'admin123' },
-  { name: 'Streetlight Department', code: 'STREETLIGHT_DEPT', email: 'admin@streetlight.gov', password: 'admin123' },
+  {
+    name: 'Road',
+    code: 'ROAD',
+    email: 'admin@road.gov',
+    password: 'admin123',
+    location: 'City Hall, Sector 12, Main Road, New Delhi - 110001',
+    foundedDate: new Date('1985-01-15'),
+    leaderName: 'Rajesh Kumar',
+    leaderEmail: 'rajesh.kumar@road.gov',
+    leaderPhone: '+91 98765 43210'
+  },
+  {
+    name: 'Electricity',
+    code: 'ELECTRICITY',
+    email: 'admin@electricity.gov',
+    password: 'admin123',
+    location: 'Power House Complex, Industrial Area, New Delhi - 110020',
+    foundedDate: new Date('1978-06-20'),
+    leaderName: 'Priya Sharma',
+    leaderEmail: 'priya.sharma@electricity.gov',
+    leaderPhone: '+91 98765 43220'
+  },
+  {
+    name: 'Sewage',
+    code: 'SEWAGE',
+    email: 'admin@sewage.gov',
+    password: 'admin123',
+    location: 'Water Works Building, Near Yamuna River, New Delhi - 110006',
+    foundedDate: new Date('1990-03-10'),
+    leaderName: 'Meera Nair',
+    leaderEmail: 'meera.nair@sewage.gov',
+    leaderPhone: '+91 98765 43230'
+  },
+  {
+    name: 'Cleanliness',
+    code: 'CLEANLINESS',
+    email: 'admin@cleanliness.gov',
+    password: 'admin123',
+    location: 'Municipal Office, Civil Lines, New Delhi - 110054',
+    foundedDate: new Date('1995-08-05'),
+    leaderName: 'Sunita Desai',
+    leaderEmail: 'sunita.desai@cleanliness.gov',
+    leaderPhone: '+91 98765 43240'
+  },
+  {
+    name: 'Dustbin Full',
+    code: 'DUSTBIN_FULL',
+    email: 'admin@dustbin.gov',
+    password: 'admin123',
+    location: 'Waste Management Center, Okhla Industrial Area, New Delhi - 110020',
+    foundedDate: new Date('2000-11-12'),
+    leaderName: 'Deepak Verma',
+    leaderEmail: 'deepak.verma@dustbin.gov',
+    leaderPhone: '+91 98765 43250'
+  },
+  {
+    name: 'Water',
+    code: 'WATER',
+    email: 'admin@water.gov',
+    password: 'admin123',
+    location: 'Water Supply Office, Connaught Place, New Delhi - 110001',
+    foundedDate: new Date('1982-04-18'),
+    leaderName: 'Suresh Reddy',
+    leaderEmail: 'suresh.reddy@water.gov',
+    leaderPhone: '+91 98765 43260'
+  },
+  {
+    name: 'Streetlight',
+    code: 'STREETLIGHT',
+    email: 'admin@streetlight.gov',
+    password: 'admin123',
+    location: 'Public Works Department, Karol Bagh, New Delhi - 110005',
+    foundedDate: new Date('1988-09-25'),
+    leaderName: 'Naveen Choudhury',
+    leaderEmail: 'naveen.choudhury@streetlight.gov',
+    leaderPhone: '+91 98765 43270'
+  }
 ];
 
 async function seedDemoUsers() {
@@ -293,12 +428,19 @@ async function seedDemoUsers() {
     for (const deptData of departments) {
       const hashedPassword = await Department.hashPassword(deptData.password);
       const department = new Department({
-        ...deptData,
+        name: deptData.name,
+        code: deptData.code,
+        email: deptData.email,
         passwordHash: hashedPassword,
-        roles: ['department']
+        roles: ['department'],
+        location: deptData.location,
+        foundedDate: deptData.foundedDate,
+        leaderName: deptData.leaderName,
+        leaderEmail: deptData.leaderEmail,
+        leaderPhone: deptData.leaderPhone
       });
       await department.save();
-      console.log(`✅ Created department: ${deptData.name} (${deptData.code})`);
+      console.log(`✅ Created department: ${deptData.name} (${deptData.code}) - Leader: ${deptData.leaderName}`);
     }
     
     // Create demo users
