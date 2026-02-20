@@ -87,11 +87,13 @@ app.use((error, req, res, next) => {
   });
 });
 
-// Start server
-app.listen(PORT, () => {
+// Start server - bind to 0.0.0.0 to allow access from other devices on the network
+app.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 Server running on port ${PORT}`);
   console.log(`📱 API available at http://localhost:${PORT}/api`);
+  console.log(`🌐 Network access: http://172.21.161.251:${PORT}/api`);
   console.log(`🏥 Health check: http://localhost:${PORT}/api/health`);
+  console.log(`📱 Mobile health check: http://172.21.161.251:${PORT}/api/health`);
 });
 
 module.exports = app;

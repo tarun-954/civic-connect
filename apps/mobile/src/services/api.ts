@@ -1,13 +1,6 @@
 // API Configuration
-import { Platform } from 'react-native';
+import { API_BASE_URL } from '../config/api';
 
-// Prefer emulator-friendly hosts to avoid timeouts:
-// - Android Emulator: 10.0.2.2 maps to host machine's localhost
-// - iOS Simulator: localhost works
-// You can override this with a LAN IP if testing on a physical device
-const API_BASE_URL = Platform.OS === 'android'
-  ? 'http://10.0.2.2:3000/api'
-  : 'http://localhost:3000/api';
 // API Service for Civic Connect
 export class ApiService {
   static baseURL = API_BASE_URL;
@@ -583,7 +576,7 @@ export const formatReportForSubmission = (reportData: any) => {
 
 // Department APIs
 export class DepartmentService {
-  static baseURL = API_BASE_URL;
+  static baseURL = API_BASE_URL; // Uses API_BASE_URL from config/api.ts
 
   static async signup(payload: { name: string; code: string; email: string; password: string }): Promise<any> {
     try {
@@ -938,7 +931,7 @@ export class DepartmentService {
 
 // OTP APIs
 export class OtpService {
-  static baseURL = API_BASE_URL;
+  static baseURL = API_BASE_URL; // Uses API_BASE_URL from config/api.ts
 
   static async requestOtp(payload: { target: string; channel: 'phone' | 'email'; purpose: 'login' | 'signup'; }) {
     const response = await fetch(`${this.baseURL}/users/request-otp`, {
