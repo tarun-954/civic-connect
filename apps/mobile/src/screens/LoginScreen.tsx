@@ -1,5 +1,19 @@
 import React, { useState } from 'react';
-import { SafeAreaView, View, Text, StyleSheet, TextInput, TouchableOpacity, Alert, ActivityIndicator, Modal, Image, Dimensions } from 'react-native';
+import {
+  SafeAreaView,
+  View,
+  Text,
+  StyleSheet,
+  TextInput,
+  TouchableOpacity,
+  Alert,
+  ActivityIndicator,
+  Image,
+  Dimensions,
+  KeyboardAvoidingView,
+  ScrollView,
+  Platform,
+} from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { OtpService, saveUserProfile, fetchMyProfile } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
@@ -83,84 +97,104 @@ export default function LoginScreen({ navigation }: any) {
 
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <View style={styles.logoContainer}>
-          <Image
-            source={require('../images/logoimage.png')}
-            style={styles.logo}
-            resizeMode="contain"
-          />
-        </View>
-        <Text style={styles.title}>Welcome Back</Text>
-        <Text style={styles.subtitle}>Enter your email to receive OTP</Text>
-      </View>
-
-      <View style={styles.form}>
-        <View style={styles.inputContainer}>
-          <Text style={styles.inputLabel}>Email Address</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="Enter your email"
-            placeholderTextColor="#9CA3AF"
-            keyboardType="email-address"
-            autoCapitalize="none"
-            value={target}
-            onChangeText={setTarget}
-          />
-        </View>
-
-        <TouchableOpacity 
-          style={[styles.button, loading && styles.buttonDisabled]} 
-          onPress={requestOtp} 
-          disabled={loading}
+      <KeyboardAvoidingView
+        style={styles.keyboardContainer}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 24}
+      >
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
         >
-          {loading ? (
-            <ActivityIndicator color="#fff" size="small" />
-          ) : (
-            <Text style={styles.buttonText}>Send OTP</Text>
-          )}
-        </TouchableOpacity>
-        
-        <View style={styles.divider}>
-          <View style={styles.dividerLine} />
-          <Text style={styles.dividerText}>or</Text>
-          <View style={styles.dividerLine} />
-        </View>
+          <View style={styles.header}>
+            <View style={styles.logoContainer}>
+              <Image
+                source={require('../images/logoimage.png')}
+                style={styles.logo}
+                resizeMode="contain"
+              />
+            </View>
+            <Text style={styles.title}>Welcome Back</Text>
+            <Text style={styles.subtitle}>Enter your email to receive OTP</Text>
+          </View>
 
-        <TouchableOpacity 
-          style={styles.googleButton}
-          onPress={() => Alert.alert('Coming soon', 'Google sign-in will be enabled shortly.')}
-        >
-          <Text style={styles.googleButtonText}>Continue with Google</Text>
-          <Image 
-            source={require('../images/icons8-google-logo-48.png')} 
-            resizeMode="contain"
-            style={{ width: 25, height: 25, marginLeft: 8 }}
-          />
-        </TouchableOpacity>
-      </View>
+          <View style={styles.form}>
+            <View style={styles.inputContainer}>
+              <Text style={styles.inputLabel}>Email Address</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="Enter your email"
+                placeholderTextColor="#9CA3AF"
+                keyboardType="email-address"
+                autoCapitalize="none"
+                value={target}
+                onChangeText={setTarget}
+                returnKeyType="done"
+              />
+            </View>
 
-      <View style={styles.footer}>
-        <View style={styles.linkRow}>
-          <Text style={styles.linkText}>New here? </Text>
-          <TouchableOpacity onPress={() => navigation.navigate('SignUp')} activeOpacity={0.8}>
-            <Text style={styles.linkEmphasis}>Create account</Text>
+            <TouchableOpacity
+              style={[styles.button, loading && styles.buttonDisabled]}
+              onPress={requestOtp}
+              disabled={loading}
+            >
+              {loading ? (
+                <ActivityIndicator color="#fff" size="small" />
+              ) : (
+                <Text style={styles.buttonText}>Send OTP</Text>
+              )}
+            </TouchableOpacity>
+
+            <View style={styles.divider}>
+              <View style={styles.dividerLine} />
+              <Text style={styles.dividerText}>or</Text>
+              <View style={styles.dividerLine} />
+            </View>
+
+            <TouchableOpacity
+              style={styles.googleButton}
+              onPress={() =>
+                Alert.alert(
+                  'Coming soon',
+                  'Google sign-in will be enabled shortly.'
+                )
+              }
+            >
+              <Text style={styles.googleButtonText}>Continue with Google</Text>
+              <Image
+                source={require('../images/icons8-google-logo-48.png')}
+                resizeMode="contain"
+                style={{ width: 25, height: 25, marginLeft: 8 }}
+              />
+            </TouchableOpacity>
+          </View>
+        </ScrollView>
+
+        <View style={styles.footer}>
+          <View style={styles.linkRow}>
+            <Text style={styles.linkText}>New here? </Text>
+            <TouchableOpacity
+              onPress={() => navigation.navigate('SignUp')}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.linkEmphasis}>Create account</Text>
+            </TouchableOpacity>
+          </View>
+
+          <TouchableOpacity
+            style={styles.switchButton}
+            onPress={() => {
+              try {
+                navigation.navigate('DepartmentLogin');
+              } catch (error) {
+                console.error('Navigation error:', error);
+              }
+            }}
+          >
+            <Text style={styles.switchText}>Switch to Department Login</Text>
           </TouchableOpacity>
         </View>
-        
-        <TouchableOpacity 
-          style={styles.switchButton}
-          onPress={() => {
-            try {
-              navigation.navigate('DepartmentLogin');
-            } catch (error) {
-              console.error('Navigation error:', error);
-            }
-          }}
-        >
-          <Text style={styles.switchText}>Switch to Department Login</Text>
-        </TouchableOpacity>
-      </View>
+      </KeyboardAvoidingView>
       {otpVisible && (
         <View style={styles.overlayBackdrop}>
           <View style={styles.modalCard}>
@@ -237,24 +271,32 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#FFFFFF',
+  },
+  keyboardContainer: {
+    flex: 1,
+  },
+  scrollContent: {
+    flexGrow: 1,
     paddingHorizontal: 24,
+    paddingTop: 24,
+    paddingBottom: 16,
+    justifyContent: 'flex-start',
   },
   header: {
     alignItems: 'center',
-    marginTop: 40,
-    marginBottom: 40,
+    marginTop: 24,
+    marginBottom: 24,
   },
   logoContainer: {
-    width: 120,
-    height: 120,
+    width: 96,
+    height: 96,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 32,
-    marginTop: 80,
+    marginBottom: 24,
   },
   logo: {
-    width: 180,
-    height: 180,
+    width: 140,
+    height: 140,
   },
   title: {
     fontSize: 28,
