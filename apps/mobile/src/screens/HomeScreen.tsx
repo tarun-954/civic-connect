@@ -1,6 +1,5 @@
 import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react';
-import { SafeAreaView, View, Text, StyleSheet, Image, TouchableOpacity, FlatList, Dimensions, TextInput, ScrollView, ActivityIndicator } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { SafeAreaView, View, Text, StyleSheet, Image, TouchableOpacity, FlatList, Dimensions, TextInput, ScrollView, ActivityIndicator, Animated, TouchableWithoutFeedback, Platform } from 'react-native';
 import { ApiService, NotificationApiService, DepartmentService } from '../services/api';
 // Try to import Lottie, fallback to null if not available
 let LottieView: any = null;
@@ -75,6 +74,10 @@ export default function HomeScreen({ navigation }: any) {
   const [officials, setOfficials] = useState<any[]>([]);
   const [loadingOfficials, setLoadingOfficials] = useState(false);
   const officialsListRef = useRef<FlatList>(null);
+  const officialsAutoScrollPausedRef = useRef(false);
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const drawerWidth = useMemo(() => Math.min(width * 0.82, 320), []);
+  const drawerX = useRef(new Animated.Value(-drawerWidth)).current;
 
   useEffect(() => {
     const updateNow = () => {
@@ -121,6 +124,46 @@ export default function HomeScreen({ navigation }: any) {
 
   // Get display name from auth context
   const displayName = user?.name || (user?.email ? user.email.split('@')[0] : 'Citizen');
+  const displayEmail = user?.email || '';
+  const avatarUri = user?.avatar;
+
+  const openDrawer = useCallback(() => {
+    setIsDrawerOpen(true);
+    Animated.timing(drawerX, {
+      toValue: 0,
+      duration: 220,
+      useNativeDriver: true,
+    }).start();
+  }, [drawerX]);
+
+  const closeDrawer = useCallback(() => {
+    Animated.timing(drawerX, {
+      toValue: -drawerWidth,
+      duration: 220,
+      useNativeDriver: true,
+    }).start(({ finished }) => {
+      if (finished) setIsDrawerOpen(false);
+    });
+  }, [drawerX, drawerWidth]);
+
+  const backdropOpacity = drawerX.interpolate({
+    inputRange: [-drawerWidth, 0],
+    outputRange: [0, 0.45],
+    extrapolate: 'clamp',
+  });
+
+  const drawerItems = useMemo(
+    () => [
+      { key: 'report', label: 'Report a problem', icon: 'edit-3', route: 'ReportIssue' },
+      { key: 'track', label: 'Track report', icon: 'list', route: 'TrackReport' },
+      { key: 'map', label: 'Maps', icon: 'map', route: 'MapView' },
+      { key: 'departments', label: 'Departments', icon: 'home', route: 'Departments' },
+      { key: 'notifications', label: 'Notifications', icon: 'bell', route: 'Notifications' },
+      { key: 'analytics', label: 'Analytics', icon: 'bar-chart-2', route: 'Analytics' },
+      { key: 'settings', label: 'Settings', icon: 'settings', route: 'Settings' },
+    ],
+    []
+  );
 
   // Memoized render function for officials carousel
   const renderOfficialCard = useCallback(({ item }: { item: any }) => {
@@ -204,6 +247,7 @@ export default function HomeScreen({ navigation }: any) {
       
       intervalId = setInterval(() => {
         if (!isRunning || !officialsListRef.current) return;
+        if (officialsAutoScrollPausedRef.current) return;
         
         // Simplified calculation - no time-based adjustments needed
         currentOffset += speed;
@@ -241,12 +285,97 @@ export default function HomeScreen({ navigation }: any) {
     };
   }, [officials.length, width]);
 
+  const handleOfficialsTouchStart = useCallback(() => {
+    officialsAutoScrollPausedRef.current = true;
+  }, []);
+
+  const handleOfficialsTouchEnd = useCallback(() => {
+    setTimeout(() => {
+      officialsAutoScrollPausedRef.current = false;
+    }, 5000);
+  }, []);
 
   return (
     <SafeAreaView style={styles.container}>
+      {/* Sidebar Drawer (in-screen) */}
+      <View
+        style={styles.drawerOverlay}
+        pointerEvents={isDrawerOpen ? 'auto' : 'none'}
+      >
+        <TouchableWithoutFeedback onPress={closeDrawer}>
+          <Animated.View style={[styles.drawerBackdrop, { opacity: backdropOpacity }]} />
+        </TouchableWithoutFeedback>
+        <Animated.View style={[styles.drawerPanel, { width: drawerWidth, transform: [{ translateX: drawerX }] }]}>
+          <View style={styles.drawerHeader}>
+            <View style={styles.drawerHeaderTopRow}>
+              <Text style={styles.drawerTitle}>Menu</Text>
+              <TouchableOpacity onPress={closeDrawer} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+                <Feather name="x" size={22} color="#111827" />
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.drawerProfileRow}>
+              <View style={styles.drawerAvatar}>
+                {avatarUri ? (
+                  <Image
+                    source={{ uri: avatarUri }}
+                    style={styles.drawerAvatarImage}
+                    resizeMode="cover"
+                  />
+                ) : (
+                  <Image
+                    source={require('../images/user_icon_143482.png')}
+                    style={styles.drawerAvatarImage}
+                    resizeMode="cover"
+                  />
+                )}
+              </View>
+              <View style={styles.drawerProfileText}>
+                <Text style={styles.drawerName} numberOfLines={1}>{displayName || 'Citizen'}</Text>
+                {!!displayEmail && (
+                  <Text style={styles.drawerEmail} numberOfLines={1}>{displayEmail}</Text>
+                )}
+              </View>
+            </View>
+          </View>
+
+          <View style={styles.drawerContent}>
+            {drawerItems.map((item) => (
+              <TouchableOpacity
+                key={item.key}
+                style={styles.drawerItem}
+                activeOpacity={0.85}
+                onPress={() => {
+                  closeDrawer();
+                  navigation.navigate(item.route);
+                }}
+              >
+                <View style={styles.drawerItemIcon}>
+                  <Feather name={item.icon as any} size={18} color="#111827" />
+                </View>
+                <Text style={styles.drawerItemLabel}>{item.label}</Text>
+                <Feather name="chevron-right" size={18} color="#9CA3AF" />
+              </TouchableOpacity>
+            ))}
+          </View>
+        </Animated.View>
+      </View>
+
       <View style={styles.header}>
         <View style={styles.profileRow}>
-          <Image source={require('../images/logoimage.png')} style={styles.avatar} />
+          <TouchableOpacity
+            style={styles.menuButton}
+            activeOpacity={0.8}
+            onPress={openDrawer}
+            accessibilityRole="button"
+            accessibilityLabel="Open menu"
+          >
+            <Image
+              source={require('../images/user_icon_143482.png')}
+              style={{ width: 22, height: 22 }}
+              resizeMode="contain"
+            />
+          </TouchableOpacity>
           <View style={styles.profileTextCol}>
             <Text style={styles.headerDate}>{dateText} • {timeText}</Text>
             <Text style={styles.headerName}>{displayName || 'Citizen'}</Text>
@@ -427,7 +556,7 @@ marginLeft :20,
             horizontal
             pagingEnabled={false}
             showsHorizontalScrollIndicator={false}
-            scrollEnabled={false}
+            scrollEnabled
             removeClippedSubviews={true}
             initialNumToRender={4}
             maxToRenderPerBatch={4}
@@ -441,6 +570,10 @@ marginLeft :20,
               };
             }}
             contentContainerStyle={styles.officialsScroll}
+            onScrollBeginDrag={handleOfficialsTouchStart}
+            onTouchStart={handleOfficialsTouchStart}
+            onTouchEnd={handleOfficialsTouchEnd}
+            onScrollEndDrag={handleOfficialsTouchEnd}
             onScrollToIndexFailed={() => {}}
             renderItem={renderOfficialCard}
           />
@@ -463,6 +596,107 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#ffffff'
   },
+  drawerOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 999,
+    elevation: 20,
+    flexDirection: 'row',
+  },
+  drawerBackdrop: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: '#111827',
+  },
+  drawerPanel: {
+    height: '100%',
+    backgroundColor: '#FFFFFF',
+    
+    
+    shadowColor: '#000',
+    shadowOffset: { width: 2, height: 0 },
+    shadowOpacity: 0.18,
+    shadowRadius: 90,
+    elevation: 90,
+    paddingTop: Platform.select({ ios: 8, android: 0, default: 0 }),
+  },
+  drawerHeader: {
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    paddingBottom: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
+  },
+  drawerHeaderTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  drawerTitle: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: '#111827',
+  },
+  drawerProfileRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 14,
+  },
+  drawerAvatar: {
+    width: 64,
+    height: 64,
+    borderRadius: 22,
+    overflow: 'hidden',
+    marginRight: 12,
+  },
+  drawerAvatarImage: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 22,
+  },
+  drawerProfileText: {
+    flex: 1,
+  },
+  drawerName: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: '#111827',
+  },
+  drawerEmail: {
+    marginTop: 2,
+    fontSize: 12,
+    color: '#6B7280',
+  },
+  drawerContent: {
+    paddingHorizontal: 12,
+    paddingTop: 10,
+   
+  },
+  drawerItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    
+    paddingVertical: 12,
+    paddingHorizontal: 10,
+    borderRadius: 12,
+  },
+  drawerItemIcon: {
+    width: 34,
+    height: 34,
+    borderRadius: 10,
+    backgroundColor: '#F3F4F6',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  drawerItemLabel: {
+    flex: 1,
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#111827',
+  },
   scrollContainer: {
     flex: 1
   },
@@ -477,11 +711,13 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center'
   },
-  avatar: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    marginRight: 10
+  menuButton: {
+    width: 50,
+    height: 50,
+    marginRight: 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+ 
   },
   profileTextCol: {
     justifyContent: 'center'
@@ -828,18 +1064,11 @@ const styles = StyleSheet.create({
   },
   officialCard: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 16,
+    borderRadius: 6,
     padding: 16,
     marginRight: 8,
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 3.84,
-    elevation: 5,
+    elevation: 2,
     borderWidth: 1,
     borderColor: '#E5E7EB',
     minHeight: 220
