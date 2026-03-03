@@ -24,3 +24,21 @@ yarn-error.log*
 # Misc
 .DS_Store
 Thumbs.db
+# Gradle
+.gradle/
+**/.gradle/
+
+# Android build
+**/build/
+
+# Logs
+*.log
+
+# Node
+node_modules/
+
+# Temp
+.tmp/
+
+# Windows weird folder
+%ProgramData%/

@@ -1,18 +1,5 @@
 // Top-level build file where you can add configuration options common to all sub-projects/modules.
 
-// Resolve React Native location FIRST - before buildscript
-// In monorepo, React Native is in root node_modules: ../../node_modules/react-native from android dir
-def reactNativeDirFromRelative = new File(rootProject.projectDir, "../../node_modules/react-native")
-def reactNativeDir = reactNativeDirFromRelative.exists() ? reactNativeDirFromRelative : new File(['node', '--print', "require.resolve('react-native/package.json')"].execute(null, rootDir).text.trim()).getParentFile()
-
-// Set React Native directory globally BEFORE buildscript
-rootProject.ext.reactNativeDir = reactNativeDir
-ext.reactNativeDir = reactNativeDir
-
-// Explicitly point RN Gradle plugin consumers (e.g., reanimated) to react-native dir
-rootProject.ext.REACT_NATIVE_NODE_MODULES_DIR = reactNativeDir.getAbsolutePath()
-ext.REACT_NATIVE_NODE_MODULES_DIR = reactNativeDir.getAbsolutePath()
-
 buildscript {
     ext {
         buildToolsVersion = findProperty('android.buildToolsVersion') ?: '34.0.0'

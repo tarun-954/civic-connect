@@ -20,6 +20,9 @@
   "dependencies": {
     "expo": "~50.0.0",
     "expo-clipboard": "^8.0.7",
+    "expo-linking": "~6.2.2",
+    "expo-modules-core": "~1.11.14",
+    "expo-web-browser": "~12.8.2",
     "lottie-react-native": "^7.3.4",
     "react": "^18.2.0",
     "react-native": "^0.73.6",

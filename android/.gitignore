@@ -13,3 +13,18 @@ local.properties
 
 # Bundle artifacts
 *.jsbundle
+# Gradle
+.gradle/
+**/.gradle/
+
+# Android build
+**/build/
+
+# Logs
+*.log
+
+# Node
+node_modules/
+
+# Temp
+.tmp/

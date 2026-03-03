@@ -1,5 +1,16 @@
 rootProject.name = 'civic-connect'
 
+pluginManagement {
+  repositories {
+    gradlePluginPortal()
+    google()
+    mavenCentral()
+  }
+  // Make the expo-module-gradle-plugin (from expo-modules-core) visible to Gradle.
+  // Root android folder is ".../android", actual node_modules lives one level up.
+  includeBuild("../node_modules/expo-modules-core/android")
+}
+
 dependencyResolutionManagement {
   versionCatalogs {
     reactAndroidLibs {
@@ -8,9 +19,11 @@ dependencyResolutionManagement {
   }
 }
 
+// Expo autolinking and expo-modules support
 apply from: new File(["node", "--print", "require.resolve('expo/package.json')"].execute(null, rootDir).text.trim(), "../scripts/autolinking.gradle");
 useExpoModules()
 
+// React Native CLI autolinking
 apply from: new File(["node", "--print", "require.resolve('@react-native-community/cli-platform-android/package.json', { paths: [require.resolve('react-native/package.json')] })"].execute(null, rootDir).text.trim(), "../native_modules.gradle");
 applyNativeModulesSettingsGradle(settings)
 

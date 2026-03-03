@@ -121,7 +121,14 @@ function DepartmentTabs() {
 
 export default function App() {
   const [loaded, error] = useFonts({
-    'Inter': require('./src/assets/fonts/inter.ttf'),
+    'OpenSans-Regular': require('./assets/fonts/OpenSans-Regular.ttf'),
+    'OpenSans-Bold': require('./assets/fonts/OpenSans-Bold.ttf'),
+    'Roboto-Regular': require('./assets/fonts/Roboto-Regular.ttf'),
+    'Roboto-Bold': require('./assets/fonts/Roboto-Bold.ttf'),
+    'Poppins-Regular': require('./assets/fonts/Poppins-Regular.ttf'),
+    'Poppins-Bold': require('./assets/fonts/Poppins-Bold.ttf'),
+    'Montserrat-Regular': require('./assets/fonts/Montserrat-Regular.ttf'),
+    'Montserrat-Bold': require('./assets/fonts/Montserrat-Bold.ttf'),
   });
   const [userRole, setUserRole] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -154,7 +161,7 @@ export default function App() {
   RNText.defaultProps = {
     ...(RNText.defaultProps || {}),
     style: [RNText.defaultProps?.style, { 
-      fontFamily: loaded ? 'Inter' : 'System' // Fallback to system font
+      fontFamily: loaded ? 'OpenSans-Regular' : 'System' // Fallback to system font
     }]
   };
 

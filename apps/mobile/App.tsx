@@ -189,7 +189,14 @@ function AppNavigator() {
 
 export default function App() {
   const [loaded, error] = useFonts({
-    'Inter': require('./src/assets/fonts/inter.ttf'),
+    'OpenSans-Regular': require('./src/assets/fonts/OpenSans-Regular.ttf'),
+    'OpenSans-Bold': require('./src/assets/fonts/OpenSans-Bold.ttf'),
+    'Roboto-Regular': require('./src/assets/fonts/Roboto-Regular.ttf'),
+    'Roboto-Bold': require('./src/assets/fonts/Roboto-Bold.ttf'),
+    'Poppins-Regular': require('./src/assets/fonts/Poppins-Regular.ttf'),
+    'Poppins-Bold': require('./src/assets/fonts/Poppins-Bold.ttf'),
+    'Montserrat-Regular': require('./src/assets/fonts/Montserrat-Regular.ttf'),
+    'Montserrat-Bold': require('./src/assets/fonts/Montserrat-Bold.ttf'),
   });
 
   // Initialize notification service
@@ -220,7 +227,7 @@ export default function App() {
   RNText.defaultProps = {
     ...(RNText.defaultProps || {}),
     style: [RNText.defaultProps?.style, { 
-      fontFamily: loaded ? 'Inter' : 'System' // Fallback to system font
+      fontFamily: loaded ? 'OpenSans-Regular' : 'System' // Fallback to system font
     }]
   };
 
