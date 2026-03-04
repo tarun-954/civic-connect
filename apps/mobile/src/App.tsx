@@ -129,6 +129,7 @@ export default function App() {
     'Poppins-Bold': require('./assets/fonts/Poppins-Bold.ttf'),
     'Montserrat-Regular': require('./assets/fonts/Montserrat-Regular.ttf'),
     'Montserrat-Bold': require('./assets/fonts/Montserrat-Bold.ttf'),
+    'Anton-Regular': require('./assets/fonts/Anton-Regular.ttf'),
   });
   const [userRole, setUserRole] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);

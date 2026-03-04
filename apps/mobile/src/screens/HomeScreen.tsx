@@ -583,7 +583,33 @@ marginLeft :20,
           </View>
         )}
       </View>
-      
+
+      <View style={styles.emptyDiv}>
+        <View style={styles.guestFavoriteRow}>
+          <View style={styles.guestFavoriteTop}>
+            <Image
+              source={require('../images/pngegg (2).png')}
+              style={styles.guestFavoriteWreath}
+              resizeMode="contain"
+            />
+            <Text style={styles.guestFavoriteRating}>4.97</Text>
+          </View>
+
+          <View style={styles.guestFavoriteTextContainer}>
+            <Text style={styles.guestFavoriteTitle}>Citizen favorite</Text>
+            <Text style={styles.guestFavoriteSubtitle}>
+              One of the most trusted civic apps for reporting and tracking local issues in your community.
+            </Text>
+          </View>
+        </View>
+      </View>
+
+      <View style={styles.footer}>
+        <Text style={styles.footerTitle}>Civic Connect</Text>
+        <Text style={styles.footerSubtitle}>
+          @ All rights reserved · Made with ❤️ by Tarun
+        </Text>
+      </View>
 
       </ScrollView>
     </SafeAreaView>
@@ -1130,5 +1156,86 @@ const styles = StyleSheet.create({
   officialsEmptyText: {
     fontSize: 14,
     color: '#9CA3AF'
+  },
+  emptyDiv: {
+   
+    
+    borderColor: '#E5E7EB',
+    paddingVertical: 8,
+    paddingHorizontal: 26,
+    marginVertical: 8,
+    alignItems: 'stretch'
+  },
+  guestFavoriteRow: {
+    width: '100%',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between'
+  },
+  guestFavoriteTop: {
+    width: 120,
+    height: 120,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12
+  },
+  guestFavoriteWreath: {
+    position: 'absolute',
+    width: '100%',
+    height: '100%',
+    tintColor: '#111827',
+    opacity: 0.85
+  },
+  guestFavoriteRating: {
+    fontSize: 30,
+    fontWeight: '700',
+    color: '#800000'
+  },
+  guestFavoriteTextContainer: {
+    flex: 1,
+    alignItems: 'center',
+    marginTop: 4
+  },
+  guestFavoriteTitle: {
+    fontSize: 22,
+    fontWeight: '800',
+    fontFamily: 'Poppins-Regular',
+    color: '#111827',
+    textAlign: 'justify',
+    marginTop: 4
+  },
+  guestFavoriteSubtitle: {
+    fontSize: 13,
+    fontFamily: 'Anton-Regular',
+    fontWeight: '600',
+    color: '#6B7280',
+    textAlign: 'justify',
+    marginTop: 6,
+    lineHeight: 18
+  },
+  footer: {
+    marginTop: 32,
+  
+    paddingHorizontal: 20,
+    paddingVertical: 4,
+    borderTopWidth: 1,
+    borderColor: '#E5E7EB',
+    backgroundColor: 'black',
+    alignItems: 'center'
+  },
+  footerTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    fontFamily: 'Anton-Regular',
+    color: 'white',
+    letterSpacing: 1,
+    textTransform: 'uppercase',
+    marginBottom: 2
+  },
+  footerSubtitle: {
+    fontSize: 12,
+    color: 'white',
+    textAlign: 'center',
+    lineHeight: 14
   },
 });
