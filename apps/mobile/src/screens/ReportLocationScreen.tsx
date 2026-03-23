@@ -29,6 +29,72 @@ export default function ReportLocationScreen({ navigation, route }: any) {
     longitudeDelta: 0.05,
   });
   const [mapKey, setMapKey] = useState(0); // Force map re-render
+  const [placeAddress, setPlaceAddress] = useState<string | null>(null);
+
+  const REVERSE_GEO_TIMEOUT_MS = 6000;
+
+  const withTimeout = <T,>(promise: Promise<T>, ms: number): Promise<T> => {
+    return new Promise((resolve, reject) => {
+      const t = setTimeout(() => reject(new Error('Reverse geocode timeout')), ms);
+      promise.then(
+        (v) => { clearTimeout(t); resolve(v); },
+        (e) => { clearTimeout(t); reject(e); }
+      );
+    });
+  };
+
+  const fetchPlaceAddressViaNominatim = async (lat: number, lon: number): Promise<string | null> => {
+    try {
+      const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&zoom=18&addressdetails=1`;
+      const res = await fetch(url, {
+        headers: { 'User-Agent': 'CivicConnect-Mobile/1.0' },
+      });
+      if (!res.ok) return null;
+      const data = await res.json();
+      const a = data?.address;
+      if (!a) return data?.display_name || null;
+      const parts = [
+        a.road,
+        a.suburb || a.neighbourhood,
+        a.city || a.town || a.village,
+        a.state || a.county,
+        a.country,
+      ].filter(Boolean);
+      return parts.length > 0 ? parts.join(', ') : (data.display_name || null);
+    } catch {
+      return null;
+    }
+  };
+
+  const fetchPlaceAddress = async (latitude: number, longitude: number): Promise<string | null> => {
+    const parseExpoResult = (result: Location.LocationGeocodedAddress | undefined) => {
+      if (!result) return null;
+      const addr =
+        result.formattedAddress ||
+        [result.name, result.street, result.district, result.city, result.region, result.country]
+          .filter(Boolean)
+          .join(', ');
+      return addr || null;
+    };
+
+    // 1) Try expo-location (works well on iOS; often times out on Android)
+    try {
+      const results = await withTimeout(
+        Location.reverseGeocodeAsync({ latitude, longitude }),
+        REVERSE_GEO_TIMEOUT_MS
+      );
+      const addr = parseExpoResult(results?.[0]);
+      if (addr) return addr;
+    } catch {
+      // Expo failed or timed out; try REST fallback
+    }
+
+    // 2) Fallback: OpenStreetMap Nominatim (no API key, works when native geocoder fails)
+    const nominatimAddr = await fetchPlaceAddressViaNominatim(latitude, longitude);
+    if (nominatimAddr) return nominatimAddr;
+
+    return null;
+  };
 
   const getCurrentLocation = async () => {
     try {
@@ -52,6 +118,8 @@ export default function ReportLocationScreen({ navigation, route }: any) {
       };
 
       setLocation(locData);
+      const addr = await fetchPlaceAddress(pos.coords.latitude, pos.coords.longitude);
+      setPlaceAddress(addr);
       setRegion({
         latitude: pos.coords.latitude,
         longitude: pos.coords.longitude,
@@ -75,7 +143,7 @@ export default function ReportLocationScreen({ navigation, route }: any) {
     }
   };
 
-  const handleMapPress = (event: any) => {
+  const handleMapPress = async (event: any) => {
     if (isManualMode) {
       const { latitude, longitude } = event.nativeEvent.coordinate;
       const manualLocation = {
@@ -85,6 +153,8 @@ export default function ReportLocationScreen({ navigation, route }: any) {
         isManual: true,
       };
       setLocation(manualLocation);
+      const addr = await fetchPlaceAddress(latitude, longitude);
+      setPlaceAddress(addr);
       setRegion({
         latitude,
         longitude,
@@ -98,6 +168,7 @@ export default function ReportLocationScreen({ navigation, route }: any) {
   const enableManualMode = () => {
     setIsManualMode(true);
     setLocation(null); // Clear previous location
+    setPlaceAddress(null);
     Alert.alert(
       "Pin Location Mode 📍",
       "Tap anywhere on the map to mark the issue location. This is useful when you're reporting from home.",
@@ -261,9 +332,12 @@ export default function ReportLocationScreen({ navigation, route }: any) {
           onPress={() => {
             const completeReportData = {
               ...reportData,
-              location: location,
+              location: {
+                ...location,
+                address: placeAddress || (location ? `Location: ${location.latitude}, ${location.longitude}` : ''),
+              },
               coordinates: location ? `${location.latitude}, ${location.longitude}` : '',
-              address: location ? `Location: ${location.latitude}, ${location.longitude}` : '',
+              address: placeAddress || (location ? `Location: ${location.latitude}, ${location.longitude}` : ''),
             };
             console.log('🔍 ReportLocationScreen - completeReportData:', JSON.stringify(completeReportData, null, 2));
             navigation.navigate('ReportPreview', { reportData: completeReportData });
