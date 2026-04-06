@@ -76,6 +76,29 @@ After installing Python:
 3. Submit a report with an image
 4. Check logs - you should now see: `✅ REAL ML Analysis (Python/OpenCV)`
 
+### Step 7 (Recommended): Run FastAPI + YOLO Service
+
+For production-style enriched ML responses, run the dedicated FastAPI service:
+
+```powershell
+cd backend
+npm run ml:serve
+```
+
+Or directly:
+
+```powershell
+uvicorn ml.ml_service:app --host 0.0.0.0 --port 8000
+```
+
+Then set environment variable for backend process:
+
+```powershell
+$env:ML_SERVICE_URL="http://127.0.0.1:8000"
+```
+
+When this is set, backend uses FastAPI first and falls back to CLI/Node analysis automatically if the service is unavailable.
+
 ## Troubleshooting
 
 ### Python Not Found After Installation

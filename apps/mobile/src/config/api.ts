@@ -29,7 +29,7 @@ const LOCAL_API_URL = Platform.OS === 'android'
 // For production/deployed backend:
 // Example: 'https://api.civicconnect.com/api'
 
-export const API_BASE_URL = 'http://10.113.144.114:3000/api';
+export const API_BASE_URL = 'http://10.30.61.114:3000/api';
 
 // Alternative: Use environment variable (recommended for production)
 // Uncomment and set EXPO_PUBLIC_API_URL in your .env file

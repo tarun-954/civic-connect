@@ -26,6 +26,7 @@ const departmentSchema = new mongoose.Schema({
         'urgent_issue',
         'system',
         'new_report',
+        'status_update',
         'report_update',
         'report_resolved',
         'resolution_approved',

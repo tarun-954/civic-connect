@@ -1219,7 +1219,7 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     borderTopWidth: 1,
     borderColor: '#E5E7EB',
-    backgroundColor: '#AAAAAA',
+    
     alignItems: 'center'
   },
   footerTitle: {

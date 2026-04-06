@@ -45,10 +45,138 @@ function checkPythonAvailability() {
   });
 }
 
+function generateComplaint(issue, priority, locationText) {
+  return [
+    'Civic Issue Report',
+    '',
+    `Issue Type: ${issue}`,
+    `Priority: ${priority}`,
+    `Location: ${locationText}`,
+    '',
+    'Description:',
+    'This issue has been automatically detected using AI. Immediate attention is recommended.',
+    '',
+    'Please take necessary action.',
+    '',
+    '- Civic Connect System'
+  ].join('\n');
+}
+
+function normalizeMlResult(rawResult, imagePath, category, options = {}) {
+  const location = {
+    latitude: options.latitude ?? null,
+    longitude: options.longitude ?? null
+  };
+  const hasLocation = location.latitude !== null && location.longitude !== null;
+  const locationText = hasLocation
+    ? `${location.latitude}, ${location.longitude}`
+    : 'Location not provided';
+
+  const detected = !!rawResult?.detected;
+  const totalIssues = Number.isFinite(rawResult?.total_issues)
+    ? rawResult.total_issues
+    : Number.isFinite(rawResult?.num_detections)
+      ? rawResult.num_detections
+      : (detected ? 1 : 0);
+
+  const normalizedIssues = Array.isArray(rawResult?.issues)
+    ? rawResult.issues.map((issue) => ({
+        type: issue?.type || rawResult?.issueType || category || 'unknown',
+        confidence: Number(issue?.confidence ?? rawResult?.confidence ?? 0),
+        bbox: Array.isArray(issue?.bbox) ? issue.bbox : null
+      }))
+    : (detected
+      ? [{
+          type: rawResult?.issueType || category || 'unknown',
+          confidence: Number(rawResult?.confidence ?? 0),
+          bbox: null
+        }]
+      : []);
+
+  const issueType = rawResult?.issueType || normalizedIssues?.[0]?.type || category || 'Issue';
+  const priority = rawResult?.priority || (detected ? 'Medium' : 'Low');
+  const severity = rawResult?.severity || (detected ? 'Medium' : 'Low');
+  const complaint = rawResult?.complaint || generateComplaint(issueType, priority, locationText);
+
+  return {
+    // Legacy fields used by existing backend flow
+    detected,
+    issueType,
+    confidence: Number(rawResult?.confidence ?? normalizedIssues?.[0]?.confidence ?? 0),
+    severity,
+    priority,
+    num_detections: Number.isFinite(rawResult?.num_detections) ? rawResult.num_detections : totalIssues,
+    total_area: Number.isFinite(rawResult?.total_area) ? rawResult.total_area : 0,
+    recommendation: rawResult?.recommendation || (detected
+      ? `Potential ${issueType} issue detected.`
+      : `No significant ${issueType} issue detected.`),
+
+    // New enriched payload shape
+    success: rawResult?.success ?? true,
+    total_issues: totalIssues,
+    issues: normalizedIssues,
+    location,
+    annotated_image: rawResult?.annotated_image || null,
+    complaint
+  };
+}
+
+async function analyzeWithRemoteService(imagePath, category, options = {}) {
+  const baseUrl = process.env.ML_SERVICE_URL;
+  if (!baseUrl) {
+    return null;
+  }
+
+  const endpoint = `${baseUrl.replace(/\/+$/, '')}/detect`;
+  const fileBuffer = fs.readFileSync(imagePath);
+  const form = new FormData();
+  form.append('file', new Blob([fileBuffer]), path.basename(imagePath));
+  form.append('category', category || 'road');
+
+  if (options.latitude !== null && options.latitude !== undefined) {
+    form.append('latitude', String(options.latitude));
+  }
+  if (options.longitude !== null && options.longitude !== undefined) {
+    form.append('longitude', String(options.longitude));
+  }
+
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 45000);
+    const response = await fetch(endpoint, {
+      method: 'POST',
+      body: form,
+      signal: controller.signal
+    });
+    clearTimeout(timeoutId);
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`);
+    }
+    const responseData = await response.json();
+
+    console.log(`✅ Remote ML service analysis completed via ${endpoint}`);
+    return normalizeMlResult(responseData, imagePath, category, options);
+  } catch (error) {
+    console.log(`⚠️ Remote ML service failed (${endpoint}), falling back to local CLI analysis`);
+    const details = error?.response?.data || error?.message;
+    if (details) {
+      console.log('⚠️ Remote ML error details:', details);
+    }
+    return null;
+  }
+}
+
 // Analyze image for issues using Python ML service
-async function analyzeImageForPotholes(imagePath, category = 'road') {
+async function analyzeImageForPotholes(imagePath, category = 'road', options = {}) {
   return new Promise(async (resolve, reject) => {
     try {
+      // Prefer remote FastAPI ML service when configured.
+      const remoteResult = await analyzeWithRemoteService(imagePath, category, options);
+      if (remoteResult) {
+        return resolve(remoteResult);
+      }
+
       // Check if Python is available
       const pythonAvailable = await checkPythonAvailability();
       
@@ -76,7 +204,7 @@ async function analyzeImageForPotholes(imagePath, category = 'road') {
         console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
         console.log('');
         const result = nodeAnalyzeImage(imagePath);
-        return resolve(result);
+        return resolve(normalizeMlResult(result, imagePath, category, options));
       }
 
       // Check if ML requirements are installed
@@ -87,7 +215,7 @@ async function analyzeImageForPotholes(imagePath, category = 'road') {
         console.log('⚠️ Using MOCK Node.js image analysis');
         console.log('⚠️ Note: This is NOT real ML detection - just file size based guessing');
         const result = nodeAnalyzeImage(imagePath);
-        return resolve(result);
+        return resolve(normalizeMlResult(result, imagePath, category, options));
       }
 
       // Try different Python commands
@@ -145,17 +273,17 @@ async function analyzeImageForPotholes(imagePath, category = 'road') {
             // Try to parse JSON output if available
             const result = JSON.parse(output);
             console.log('✅ REAL ML Analysis (Python/OpenCV) completed successfully');
-            resolve(result);
+            resolve(normalizeMlResult(result, imagePath, category, options));
           } catch (e) {
             console.log('⚠️ Failed to parse Python output, using fallback analysis');
             // Fallback to simple analysis
-            resolve(simpleDetectionAnalysis(imagePath, output));
+            resolve(normalizeMlResult(simpleDetectionAnalysis(imagePath, output), imagePath, category, options));
           }
         } else {
           console.log('⚠️ Python ML service error, using MOCK Node.js analysis:', error);
           console.log('⚠️ Note: This is NOT real ML detection - just file size based guessing');
           const result = nodeAnalyzeImage(imagePath);
-          resolve(result);
+          resolve(normalizeMlResult(result, imagePath, category, options));
         }
       });
 
@@ -163,7 +291,7 @@ async function analyzeImageForPotholes(imagePath, category = 'road') {
         console.log('⚠️ Failed to spawn Python, using MOCK Node.js analysis:', err.message);
         console.log('⚠️ Note: This is NOT real ML detection - just file size based guessing');
         const result = nodeAnalyzeImage(imagePath);
-        resolve(result);
+        resolve(normalizeMlResult(result, imagePath, category, options));
       });
 
     } catch (error) {
@@ -171,7 +299,7 @@ async function analyzeImageForPotholes(imagePath, category = 'road') {
       console.log('⚠️ Using MOCK Node.js analysis as fallback');
       console.log('⚠️ Note: This is NOT real ML detection - just file size based guessing');
       const result = nodeAnalyzeImage(imagePath);
-      resolve(result);
+      resolve(normalizeMlResult(result, imagePath, category, options));
     }
   });
 }

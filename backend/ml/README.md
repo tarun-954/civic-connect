@@ -8,12 +8,21 @@ This directory contains the ML service for detecting various civic issues (potho
 
 ## How It Works
 
-### Real ML Detection (Python + OpenCV)
-The **real** ML detection uses Python with OpenCV to:
+### Real ML Detection (Python + OpenCV CLI)
+The local CLI analyzer (`service.py`) uses Python with OpenCV to:
 - Analyze images using computer vision techniques
 - Detect potholes using edge detection and contour analysis
 - Calculate confidence scores based on actual image analysis
 - Determine severity and priority based on detected features
+
+### Production ML API (FastAPI + YOLO)
+You can now run a dedicated ML HTTP service using `ml_service.py`:
+- Endpoint: `POST /detect`
+- Framework: FastAPI
+- Model: YOLO (`ultralytics`)
+- Returns enriched payload: `issues`, `severity`, `priority`, `location`, `annotated_image`, `complaint`
+
+When backend env var `ML_SERVICE_URL` is set (example: `http://127.0.0.1:8000`), Node backend will call this API first and automatically fall back to CLI/local analysis if unavailable.
 
 ### Mock/Demo Detection (Node.js Fallback)
 If Python is not available or fails, the system falls back to a **mock/demo** analyzer that:
@@ -47,6 +56,10 @@ Required packages:
 - `numpy` - For numerical operations
 - `Pillow` - For image handling
 - `requests` - For HTTP requests (if needed)
+- `fastapi` - ML API framework
+- `uvicorn` - ASGI server for FastAPI
+- `python-multipart` - Multipart file upload support
+- `ultralytics` - YOLO model runtime
 
 **Note for Python 3.14+**: If `opencv-python` installation fails, use `opencv-python-headless` instead.
 
@@ -66,11 +79,32 @@ python backend/ml/service.py --analyze path/to/your/image.jpg
 
 This should output JSON with detection results.
 
+### Step 5: Run FastAPI + YOLO Service (Production Path)
+From `backend` directory:
+
+```bash
+npm run ml:serve
+```
+
+Or directly:
+
+```bash
+uvicorn ml.ml_service:app --host 0.0.0.0 --port 8000
+```
+
+Then set backend env var:
+
+```bash
+ML_SERVICE_URL=http://127.0.0.1:8000
+```
+
 ## How to Know Which Analyzer is Running
 
 Check your backend server logs:
 
 - **✅ REAL ML Analysis**: You'll see:
+  - `✅ Remote ML service analysis completed via http://.../detect` (when `ML_SERVICE_URL` is set and service is reachable)
+  - or
   - `🐍 Using Python command: python`
   - `🔬 Starting REAL ML Analysis (Python/OpenCV)...`
   - `✅ REAL ML Analysis (Python/OpenCV) completed successfully`

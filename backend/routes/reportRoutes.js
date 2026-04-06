@@ -813,7 +813,14 @@ router.post('/analyze-image', upload.single('image'), async (req, res) => {
     console.log(`🤖 Analyzing image: ${req.file.filename} for category: ${category}`);
 
     // Analyze image using ML service with category
-    const analysisResults = await mlService.analyzeImageForPotholes(imagePath, category);
+    const latitude = req.body.latitude != null ? Number(req.body.latitude) : null;
+    const longitude = req.body.longitude != null ? Number(req.body.longitude) : null;
+
+    const analysisResults = await mlService.analyzeImageForPotholes(
+      imagePath,
+      category,
+      { latitude, longitude }
+    );
     
     console.log('🤖 ML Analysis complete:', analysisResults);
 
