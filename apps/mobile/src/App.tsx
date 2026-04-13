@@ -12,6 +12,8 @@ import HomeScreen from './screens/HomeScreen';
 import MapViewScreen from './screens/MapViewScreen';
 import AnalyticsScreen from './screens/AnalyticsScreen';
 import SettingsScreen from './screens/SettingsScreen';
+import ProfileSettingsScreen from './screens/ProfileSettingsScreen';
+import NotificationSettingsScreen from './screens/NotificationSettingsScreen';
 import ReportIssueScreen from './screens/ReportIssueScreen';
 import ReportLocationScreen from './screens/ReportLocationScreen';
 import TrackReportScreen from './screens/TrackReportScreen';
@@ -184,6 +186,8 @@ export default function App() {
         <Stack.Screen name="Departments" component={DepartmentsScreen} />
         <Stack.Screen name="SmartDustbin" component={SmartDustbinScreen} />
         <Stack.Screen name="Notifications" component={NotificationsScreen} />
+        <Stack.Screen name="ProfileSettings" component={ProfileSettingsScreen} />
+        <Stack.Screen name="NotificationSettings" component={NotificationSettingsScreen} />
         <Stack.Screen name="ResolutionReview" component={ResolutionReviewScreen} />
       </Stack.Navigator>
     </NavigationContainer>

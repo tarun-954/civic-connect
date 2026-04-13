@@ -159,7 +159,7 @@ export default function MLAnalysisScreen({ navigation }: any) {
         <View style={styles.infoCard}>
           <Feather name="info" size={24} color="#3B82F6" />
           <Text style={styles.infoText}>
-            Analyze images for pothole detection using ML. Upload images to get automatic priority classification.
+            Analyze images for civic issues (potholes, dustbins/garbage, etc.) using ML. Upload images to get automatic priority classification.
           </Text>
         </View>
 
@@ -242,7 +242,9 @@ export default function MLAnalysisScreen({ navigation }: any) {
                 color={analysisResults.detected ? '#10B981' : '#EF4444'} 
               />
               <Text style={styles.detectionStatus}>
-                {analysisResults.detected ? 'Pothole Detected' : 'No Pothole Detected'}
+                {analysisResults.detected
+                  ? `${analysisResults.issueType || 'Issue'} Detected`
+                  : `No ${analysisResults.issueType || 'Issue'} Detected`}
               </Text>
             </View>
 

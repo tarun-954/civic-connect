@@ -107,7 +107,7 @@ function normalizeMlResult(rawResult, imagePath, category, options = {}) {
     priority,
     num_detections: Number.isFinite(rawResult?.num_detections) ? rawResult.num_detections : totalIssues,
     total_area: Number.isFinite(rawResult?.total_area) ? rawResult.total_area : 0,
-    recommendation: rawResult?.recommendation || (detected
+    recommendation: rawResult?.recommendation || rawResult?.complaint || (detected
       ? `Potential ${issueType} issue detected.`
       : `No significant ${issueType} issue detected.`),
 

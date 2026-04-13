@@ -723,6 +723,23 @@ router.post('/upload-image', requireAuth, upload.single('image'), async (req, re
     
     // Create accessible URL for the uploaded image
     const imageUrl = `${req.protocol}://${req.get('host')}/api/reports/uploads/reports/${req.file.filename}`;
+    const imagePath = req.file.path;
+    const category = req.body.category || req.body.issueCategory || 'road';
+    const latitude = req.body.latitude != null ? Number(req.body.latitude) : null;
+    const longitude = req.body.longitude != null ? Number(req.body.longitude) : null;
+    let analysisResults = null;
+
+    try {
+      console.log(`🤖 Running image analysis during upload for category: ${category}`);
+      analysisResults = await mlService.analyzeImageForPotholes(
+        imagePath,
+        category,
+        { latitude, longitude }
+      );
+      console.log('✅ Upload image analysis completed');
+    } catch (analysisError) {
+      console.error('⚠️ Upload image analysis failed, returning upload response without analysis:', analysisError);
+    }
     
     console.log('✅ Image URL created:', imageUrl);
     
@@ -733,7 +750,9 @@ router.post('/upload-image', requireAuth, upload.single('image'), async (req, re
         filename: req.file.filename,
         originalName: req.file.originalname,
         size: req.file.size,
-        url: imageUrl
+        url: imageUrl,
+        category,
+        analysis: analysisResults
       }
     });
   } catch (error) {

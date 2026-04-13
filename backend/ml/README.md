@@ -98,6 +98,28 @@ Then set backend env var:
 ML_SERVICE_URL=http://127.0.0.1:8000
 ```
 
+### Custom YOLO weights (required for dustbin/pothole labels)
+For real results on labels like `dustbin` and `pothole`, you must use a YOLO model trained/fine-tuned on those classes.
+
+Set environment variables for `ml_service.py`:
+
+```bash
+# Your custom YOLO weights file (trained with classes that include dustbin/pothole)
+YOLO_MODEL_PATH=/path/to/your/weights.pt
+
+# Detection confidence threshold
+CONF_THRESHOLD=0.5
+
+# Optional: only keep detections whose label matches these (comma-separated)
+# Example: ALLOWED_LABELS=pothole,dustbin
+ALLOWED_LABELS=
+
+# Optional: save annotated debug images (may impact performance)
+SAVE_ANNOTATED_IMAGES=false
+```
+
+The service uses the YOLO model's built-in class names (`model.names`) instead of a hardcoded mapping, so labels will match whatever was trained into your weights.
+
 ## How to Know Which Analyzer is Running
 
 Check your backend server logs:

@@ -971,6 +971,12 @@ export type StoredUserProfile = {
   userId?: string;
 };
 
+export type NotificationPreferences = {
+  pushEnabled: boolean;
+  reportUpdates: boolean;
+  announcements: boolean;
+};
+
 const USER_PROFILE_KEY = 'cc_user_profile';
 
 export async function saveUserProfile(profile: StoredUserProfile): Promise<void> {
@@ -1062,6 +1068,66 @@ export async function updateProfile(profileData: {
     return updatedProfile;
   } catch (error) {
     console.error('Error updating profile:', error);
+    throw error;
+  }
+}
+
+export async function fetchNotificationPreferences(): Promise<NotificationPreferences | null> {
+  try {
+    const token = await AsyncStorage.getItem('authToken');
+    if (!token) return null;
+
+    const response = await fetch(`${API_BASE_URL}/users/notification-preferences`, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(result.message || 'Failed to fetch notification preferences');
+    }
+
+    const prefs = result?.data?.notificationPreferences || {};
+    return {
+      pushEnabled: prefs.pushEnabled ?? true,
+      reportUpdates: prefs.reportUpdates ?? true,
+      announcements: prefs.announcements ?? true
+    };
+  } catch (error) {
+    console.error('Error fetching notification preferences:', error);
+    throw error;
+  }
+}
+
+export async function updateNotificationPreferences(
+  preferences: Partial<NotificationPreferences>
+): Promise<NotificationPreferences | null> {
+  try {
+    const token = await AsyncStorage.getItem('authToken');
+    if (!token) {
+      throw new Error('No authentication token found');
+    }
+
+    const response = await fetch(`${API_BASE_URL}/users/notification-preferences`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`
+      },
+      body: JSON.stringify(preferences)
+    });
+
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(result.message || 'Failed to update notification preferences');
+    }
+
+    const prefs = result?.data?.notificationPreferences || {};
+    return {
+      pushEnabled: prefs.pushEnabled ?? true,
+      reportUpdates: prefs.reportUpdates ?? true,
+      announcements: prefs.announcements ?? true
+    };
+  } catch (error) {
+    console.error('Error updating notification preferences:', error);
     throw error;
   }
 }

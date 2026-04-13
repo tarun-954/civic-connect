@@ -79,7 +79,12 @@ const userSchema = new mongoose.Schema({
     createdAt: { type: Date, default: Date.now },
     read: { type: Boolean, default: false },
     readAt: { type: Date, default: null }
-  }]
+  }],
+  notificationPreferences: {
+    pushEnabled: { type: Boolean, default: true },
+    reportUpdates: { type: Boolean, default: true },
+    announcements: { type: Boolean, default: true }
+  }
 }, {
   timestamps: true
 });
